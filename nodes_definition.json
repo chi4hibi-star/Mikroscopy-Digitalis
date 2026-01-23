@@ -1,0 +1,1003 @@
+{
+  "categories": [
+    {
+      "name": "Arithmetic",
+      "nodes": [
+        {
+          "name": "Add",
+          "description": "Add constant value",
+          "color": [150, 0, 0],
+          "parameters": [
+            {
+              "name": "Value",
+              "type": "int",
+              "value": 0,
+              "min": -255,
+              "max": 255,
+              "connectable": true
+            }
+          ]
+        },
+        {
+          "name": "Multiply",
+          "description": "Multiply by constant",
+          "color": [150, 0, 0],
+          "parameters": [
+            {
+              "name": "Factor",
+              "type": "float",
+              "value": 1.0,
+              "min": 0.0,
+              "max": 10.0,
+              "connectable": true
+            }
+          ]
+        },
+        {
+          "name": "Exponential",
+          "description": "Exponential transform",
+          "color": [150, 0, 0],
+          "parameters": [
+            {
+              "name": "Scale",
+              "type": "float",
+              "value": 1.0,
+              "min": 0.01,
+              "max": 5.0,
+              "connectable": true
+            }
+          ]
+        },
+        {
+          "name": "Add Images",
+          "description": "Add two images",
+          "color": [150, 0, 0],
+          "parameters": [
+            {
+              "name": "Image A",
+              "type": "image",
+              "value": null,
+              "connectable": true
+            },
+            {
+              "name": "Image B",
+              "type": "image",
+              "value": null,
+              "connectable": true
+            },
+            {
+              "name": "Weight A",
+              "type": "float",
+              "value": 0.5,
+              "min": 0.0,
+              "max": 1.0,
+              "connectable": true
+            },
+            {
+              "name": "Weight B",
+              "type": "float",
+              "value": 0.5,
+              "min": 0.0,
+              "max": 1.0,
+              "connectable": true
+            }
+          ]
+        },
+        {
+          "name": "Multiply Images",
+          "description": "Multiply two images",
+          "color": [150, 0, 0],
+          "parameters": [
+            {
+              "name": "Image A",
+              "type": "image",
+              "value": null,
+              "connectable": true
+            },
+            {
+              "name": "Image B",
+              "type": "image",
+              "value": null,
+              "connectable": true
+            }
+          ]
+        },
+        {
+          "name": "Exponential Images",
+          "description": "Exponential of two images",
+          "color": [150, 0, 0],
+          "parameters": [
+            {
+              "name": "Base Image",
+              "type": "image",
+              "value": null,
+              "connectable": true
+            },
+            {
+              "name": "Exponent Image",
+              "type": "image",
+              "value": null,
+              "connectable": true
+            },
+            {
+              "name": "Scale",
+              "type": "float",
+              "value": 1.0,
+              "min": 0.01,
+              "max": 5.0,
+              "connectable": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Transform",
+      "nodes": [
+        {
+          "name": "ROI",
+          "description": "Region of Interest",
+          "color": [150, 150, 0],
+          "parameters": [
+            {
+              "name": "X",
+              "type": "int",
+              "value": 0,
+              "min": 0,
+              "max": 5000,
+              "connectable": true
+            },
+            {
+              "name": "Y",
+              "type": "int",
+              "value": 0,
+              "min": 0,
+              "max": 5000,
+              "connectable": true
+            },
+            {
+              "name": "Width",
+              "type": "int",
+              "value": 100,
+              "min": 1,
+              "max": 5000,
+              "connectable": true
+            },
+            {
+              "name": "Height",
+              "type": "int",
+              "value": 100,
+              "min": 1,
+              "max": 5000,
+              "connectable": true
+            }
+          ]
+        },
+        {
+          "name": "Crop to Center",
+          "description": "Cut region",
+          "color": [150, 150, 0],
+          "parameters": []
+        },
+        {
+          "name": "Scale",
+          "description": "Resize image",
+          "color": [150, 150, 0],
+          "parameters": [
+            {
+              "name": "Width",
+              "type": "int",
+              "value": 100,
+              "min": 1,
+              "max": 2000,
+              "connectable": true
+            },
+            {
+              "name": "Height",
+              "type": "int",
+              "value": 100,
+              "min": 1,
+              "max": 2000,
+              "connectable": true
+            }
+          ]
+        },
+        {
+          "name": "Rotate",
+          "description": "Rotate image",
+          "color": [150, 150, 0],
+          "parameters": [
+            {
+              "name": "Angle",
+              "type": "float",
+              "value": 0.0,
+              "min": -180.0,
+              "max": 180.0,
+              "connectable": true
+            }
+          ]
+        },
+        {
+          "name": "Translate",
+          "description": "Shift image position",
+          "color": [150, 150, 0],
+          "parameters": [
+            {
+              "name": "X Offset",
+              "type": "int",
+              "value": 0,
+              "min": -1000,
+              "max": 1000,
+              "connectable": true
+            },
+            {
+              "name": "Y Offset",
+              "type": "int",
+              "value": 0,
+              "min": -1000,
+              "max": 1000,
+              "connectable": true
+            },
+            {
+              "name": "Border Value",
+              "type": "int",
+              "value": 0,
+              "min": 0,
+              "max": 255,
+              "connectable": false
+            }
+          ]
+        },
+        {
+          "name": "Undistort",
+          "description": "Lens distortion correction",
+          "color": [150, 150, 0],
+          "parameters": [
+            {
+              "name": "K1",
+              "type": "float",
+              "value": 0.0,
+              "min": -1.0,
+              "max": 1.0,
+              "connectable": true
+            },
+            {
+              "name": "K2",
+              "type": "float",
+              "value": 0.0,
+              "min": -1.0,
+              "max": 1.0,
+              "connectable": true
+            },
+            {
+              "name": "P1",
+              "type": "float",
+              "value": 0.0,
+              "min": -0.1,
+              "max": 0.1,
+              "connectable": true
+            },
+            {
+              "name": "P2",
+              "type": "float",
+              "value": 0.0,
+              "min": -0.1,
+              "max": 0.1,
+              "connectable": true
+            },
+            {
+              "name": "K3",
+              "type": "float",
+              "value": 0.0,
+              "min": -1.0,
+              "max": 1.0,
+              "connectable": true
+            },
+            {
+              "name": "FX",
+              "type": "float",
+              "value": 1000.0,
+              "min": 1.0,
+              "max": 5000.0,
+              "connectable": true
+            },
+            {
+              "name": "FY",
+              "type": "float",
+              "value": 1000.0,
+              "min": 1.0,
+              "max": 5000.0,
+              "connectable": true
+            }
+          ]
+        },
+        {
+          "name": "Flip",
+          "description": "Flip/mirror image",
+          "color": [150, 150, 0],
+          "parameters": [
+            {
+              "name": "Direction",
+              "type": "choice",
+              "value": "Horizontal",
+              "options": ["Horizontal", "Vertical", "Both"],
+              "connectable": false
+            }
+          ]
+        },
+        {
+          "name": "Pad",
+          "description": "Add border padding",
+          "color": [150, 150, 0],
+          "parameters": [
+            {
+              "name": "Top",
+              "type": "int",
+              "value": 10,
+              "min": 0,
+              "max": 500,
+              "connectable": true
+            },
+            {
+              "name": "Bottom",
+              "type": "int",
+              "value": 10,
+              "min": 0,
+              "max": 500,
+              "connectable": true
+            },
+            {
+              "name": "Left",
+              "type": "int",
+              "value": 10,
+              "min": 0,
+              "max": 500,
+              "connectable": true
+            },
+            {
+              "name": "Right",
+              "type": "int",
+              "value": 10,
+              "min": 0,
+              "max": 500,
+              "connectable": true
+            },
+            {
+              "name": "Border Type",
+              "type": "choice",
+              "value": "Constant",
+              "options": ["Constant", "Replicate", "Reflect", "Wrap", "Reflect101"],
+              "connectable": false
+            },
+            {
+              "name": "Border Value",
+              "type": "int",
+              "value": 0,
+              "min": 0,
+              "max": 255,
+              "connectable": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Filters",
+      "nodes": [
+        {
+          "name": "Box Filter",
+          "description": "Mean blur filter",
+          "color": [0, 150, 0],
+          "parameters": [
+            {
+              "name": "Kernel Size",
+              "type": "int",
+              "value": 5,
+              "min": 1,
+              "max": 51,
+              "connectable": true
+            },
+            {
+              "name": "Normalize",
+              "type": "bool",
+              "value": true,
+              "connectable": false
+            }
+          ]
+        },
+        {
+          "name": "Gaussian Blur",
+          "description": "Smooth images",
+          "color": [0, 150, 0],
+          "parameters": [
+            {
+              "name": "Kernel Size",
+              "type": "int",
+              "value": 5,
+              "min": 1,
+              "max": 31,
+              "connectable": true
+            },
+            {
+              "name": "Sigma",
+              "type": "float",
+              "value": 1.5,
+              "min": 0.1,
+              "max": 5.0,
+              "connectable": true
+            },
+            {
+              "name": "Border Type",
+              "type": "choice",
+              "value": "Reflect",
+              "options": ["Reflect", "Replicate", "Constant", "Wrap"],
+              "connectable": false
+            },
+            {
+              "name": "Normalize",
+              "type": "bool",
+              "value": true,
+              "connectable": false
+            }
+          ]
+        },
+        {
+          "name": "Median Blur",
+          "description": "Remove noise",
+          "color": [0, 150, 0],
+          "parameters": [
+            {
+              "name": "Kernel Size",
+              "type": "int",
+              "value": 5,
+              "min": 1,
+              "max": 31,
+              "connectable": true
+            }
+          ]
+        },
+        {
+          "name": "Bilateral Filter",
+          "description": "Edge-preserving",
+          "color": [0, 150, 0],
+          "parameters": [
+            {
+              "name": "Diameter",
+              "type": "int",
+              "value": 9,
+              "min": 1,
+              "max": 15,
+              "connectable": true
+            },
+            {
+              "name": "Sigma Color",
+              "type": "float",
+              "value": 75.0,
+              "min": 0.0,
+              "max": 200.0,
+              "connectable": true
+            },
+            {
+              "name": "Sigma Space",
+              "type": "float",
+              "value": 75.0,
+              "min": 0.0,
+              "max": 200.0,
+              "connectable": true
+            }
+          ]
+        },
+        {
+          "name": "NL Means Denoise",
+          "description": "Non-local means denoising",
+          "color": [0, 150, 0],
+          "parameters": [
+            {
+              "name": "h",
+              "type": "int",
+              "value": 10,
+              "min": 1,
+              "max": 30,
+              "connectable": true
+            },
+            {
+              "name": "Template Window",
+              "type": "int",
+              "value": 7,
+              "min": 1,
+              "max": 21,
+              "connectable": true
+            },
+            {
+              "name": "Search Window",
+              "type": "int",
+              "value": 21,
+              "min": 1,
+              "max": 51,
+              "connectable": true
+            }
+          ]
+        },
+        {
+          "name": "Laplacian",
+          "description": "Second derivative",
+          "color": [0, 150, 0],
+          "parameters": []
+        },
+        {
+          "name": "Sobel",
+          "description": "Gradient-based",
+          "color": [0, 150, 0],
+          "parameters": []
+        },
+        {
+          "name": "Scharr",
+          "description": "Scharr edge detection",
+          "color": [0, 150, 0],
+          "parameters": [
+            {
+              "name": "dx",
+              "type": "int",
+              "value": 1,
+              "min": 0,
+              "max": 1,
+              "connectable": true
+            },
+            {
+              "name": "dy",
+              "type": "int",
+              "value": 0,
+              "min": 0,
+              "max": 1,
+              "connectable": true
+            },
+            {
+              "name": "Scale",
+              "type": "float",
+              "value": 1.0,
+              "min": 0.1,
+              "max": 10.0,
+              "connectable": true
+            }
+          ]
+        },
+        {
+          "name": "FFT Low Pass",
+          "description": "Frequency low pass",
+          "color": [0, 150, 0],
+          "parameters": [
+            {
+              "name": "Cutoff Percent",
+              "type": "float",
+              "value": 10.0,
+              "min": 0.1,
+              "max": 100.0,
+              "connectable": true
+            },
+            {
+              "name": "Order",
+              "type": "int",
+              "value": 2,
+              "min": 1,
+              "max": 10,
+              "connectable": true
+            }
+          ]
+        },
+        {
+          "name": "FFT High Pass",
+          "description": "Frequency high pass",
+          "color": [0, 150, 0],
+          "parameters": [
+            {
+              "name": "Cutoff Percent",
+              "type": "float",
+              "value": 10.0,
+              "min": 0.1,
+              "max": 100.0,
+              "connectable": true
+            },
+            {
+              "name": "Order",
+              "type": "int",
+              "value": 2,
+              "min": 1,
+              "max": 10,
+              "connectable": true
+            }
+          ]
+        },
+        {
+          "name": "Canny",
+          "description": "Multi-stage edge",
+          "color": [0, 150, 0],
+          "parameters": [
+            {
+              "name": "Threshold 1",
+              "type": "int",
+              "value": 100,
+              "min": 0,
+              "max": 255,
+              "connectable": true
+            },
+            {
+              "name": "Threshold 2",
+              "type": "int",
+              "value": 200,
+              "min": 0,
+              "max": 255,
+              "connectable": true
+            },
+            {
+              "name": "Aperture Size",
+              "type": "int",
+              "value": 3,
+              "min": 3,
+              "max": 7,
+              "connectable": false
+            }
+          ]
+        },
+        {
+          "name": "Gabor Filter",
+          "description": "Texture/orientation filter",
+          "color": [0, 150, 0],
+          "parameters": [
+            {
+              "name": "Kernel Size",
+              "type": "int",
+              "value": 21,
+              "min": 3,
+              "max": 51,
+              "connectable": true
+            },
+            {
+              "name": "Sigma",
+              "type": "float",
+              "value": 5.0,
+              "min": 0.1,
+              "max": 20.0,
+              "connectable": true
+            },
+            {
+              "name": "Theta",
+              "type": "float",
+              "value": 0.0,
+              "min": 0.0,
+              "max": 180.0,
+              "connectable": true
+            },
+            {
+              "name": "Lambda",
+              "type": "float",
+              "value": 10.0,
+              "min": 1.0,
+              "max": 50.0,
+              "connectable": true
+            },
+            {
+              "name": "Gamma",
+              "type": "float",
+              "value": 0.5,
+              "min": 0.1,
+              "max": 2.0,
+              "connectable": true
+            },
+            {
+              "name": "Psi",
+              "type": "float",
+              "value": 0.0,
+              "min": 0.0,
+              "max": 180.0,
+              "connectable": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Threshold",
+      "nodes": [
+        {
+          "name": "Binary",
+          "description": "Simple threshold",
+          "color": [0, 0, 150],
+          "parameters": [
+            {
+              "name": "Threshold",
+              "type": "int",
+              "value": 127,
+              "min": 0,
+              "max": 255,
+              "connectable": true
+            },
+            {
+              "name": "Max Value",
+              "type": "int",
+              "value": 255,
+              "min": 0,
+              "max": 255,
+              "connectable": false
+            }
+          ]
+        },
+        {
+          "name": "Adaptive",
+          "description": "Local threshold",
+          "color": [0, 0, 150],
+          "parameters": []
+        },
+        {
+          "name": "Otsu",
+          "description": "Auto threshold",
+          "color": [0, 0, 150],
+          "parameters": []
+        }
+      ]
+    },
+    {
+      "name": "Morphology",
+      "nodes": [
+        {
+          "name": "Erode",
+          "description": "Shrink features",
+          "color": [0, 150, 150],
+          "parameters": [
+            {
+              "name": "Kernel Size",
+              "type": "int",
+              "value": 5,
+              "min": 1,
+              "max": 21,
+              "connectable": true
+            },
+            {
+              "name": "Iterations",
+              "type": "int",
+              "value": 1,
+              "min": 1,
+              "max": 10,
+              "connectable": true
+            }
+          ]
+        },
+        {
+          "name": "Dilate",
+          "description": "Expand features",
+          "color": [0, 150, 150],
+          "parameters": [
+            {
+              "name": "Kernel Size",
+              "type": "int",
+              "value": 5,
+              "min": 1,
+              "max": 21,
+              "connectable": true
+            },
+            {
+              "name": "Iterations",
+              "type": "int",
+              "value": 1,
+              "min": 1,
+              "max": 10,
+              "connectable": true
+            }
+          ]
+        },
+        {
+          "name": "Opening",
+          "description": "Remove noise",
+          "color": [0, 150, 150],
+          "parameters": [
+            {
+              "name": "Kernel Size",
+              "type": "int",
+              "value": 5,
+              "min": 1,
+              "max": 21,
+              "connectable": true
+            },
+            {
+              "name": "Iterations",
+              "type": "int",
+              "value": 1,
+              "min": 1,
+              "max": 10,
+              "connectable": true
+            }
+          ]
+        },
+        {
+          "name": "Closing",
+          "description": "Fill gaps",
+          "color": [0, 150, 150],
+          "parameters": [
+            {
+              "name": "Kernel Size",
+              "type": "int",
+              "value": 5,
+              "min": 1,
+              "max": 21,
+              "connectable": true
+            },
+            {
+              "name": "Iterations",
+              "type": "int",
+              "value": 1,
+              "min": 1,
+              "max": 10,
+              "connectable": true
+            }
+          ]
+        },
+        {
+          "name": "Gradient",
+          "description": "Morphological gradient",
+          "color": [0, 150, 150],
+          "parameters": [
+            {
+              "name": "Kernel Size",
+              "type": "int",
+              "value": 5,
+              "min": 1,
+              "max": 21,
+              "connectable": true
+            },
+            {
+              "name": "Kernel Shape",
+              "type": "choice",
+              "value": "Rect",
+              "options": ["Rect", "Ellipse", "Cross"],
+              "connectable": false
+            }
+          ]
+        },
+        {
+          "name": "Top Hat",
+          "description": "Top hat transform",
+          "color": [0, 150, 150],
+          "parameters": [
+            {
+              "name": "Kernel Size",
+              "type": "int",
+              "value": 9,
+              "min": 1,
+              "max": 31,
+              "connectable": true
+            },
+            {
+              "name": "Kernel Shape",
+              "type": "choice",
+              "value": "Rect",
+              "options": ["Rect", "Ellipse", "Cross"],
+              "connectable": false
+            }
+          ]
+        },
+        {
+          "name": "Black Hat",
+          "description": "Black hat transform",
+          "color": [0, 150, 150],
+          "parameters": [
+            {
+              "name": "Kernel Size",
+              "type": "int",
+              "value": 9,
+              "min": 1,
+              "max": 31,
+              "connectable": true
+            },
+            {
+              "name": "Kernel Shape",
+              "type": "choice",
+              "value": "Rect",
+              "options": ["Rect", "Ellipse", "Cross"],
+              "connectable": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Objects",
+      "nodes": [
+        {
+          "name": "Label Objects",
+          "description": "Label connected components",
+          "color": [220, 180, 100],
+          "parameters": [
+            {
+              "name": "Connectivity",
+              "type": "choice",
+              "value": "8",
+              "options": ["4", "8"],
+              "connectable": false
+            },
+            {
+              "name": "Min Area",
+              "type": "int",
+              "value": 50,
+              "min": 0,
+              "max": 10000,
+              "connectable": true
+            }
+          ]
+        },
+        {
+          "name": "Object Characteristics",
+          "description": "Calculate all object metrics",
+          "color": [220, 180, 100],
+          "parameters": [
+            {
+              "name": "Connectivity",
+              "type": "choice",
+              "value": "8",
+              "options": ["4", "8"],
+              "connectable": false
+            },
+            {
+              "name": "Min Area",
+              "type": "int",
+              "value": 50,
+              "min": 0,
+              "max": 10000,
+              "connectable": true
+            },
+            {
+              "name": "Draw Labels",
+              "type": "bool",
+              "value": true,
+              "connectable": false
+            },
+            {
+              "name": "Draw Boxes",
+              "type": "bool",
+              "value": true,
+              "connectable": false
+            },
+            {
+              "name": "Draw Centroids",
+              "type": "bool",
+              "value": true,
+              "connectable": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Specials",
+      "nodes": [
+        {
+          "name": "Skeleton",
+          "description": "Morphological skeleton",
+          "color": [150, 0, 150],
+          "parameters": []
+        },
+        {
+          "name": "Watershed",
+          "description": "Watershed segmentation",
+          "color": [150, 0, 150],
+          "parameters": [
+            {
+              "name": "Threshold",
+              "type": "int",
+              "value": 127,
+              "min": 0,
+              "max": 255,
+              "connectable": true
+            },
+            {
+              "name": "Min Distance",
+              "type": "int",
+              "value": 10,
+              "min": 1,
+              "max": 100,
+              "connectable": true
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+    "resolution": [
+        1366,
+        768
+    ],
+    "display_flag": "RESIZABLE",
+    "language": "German",
+    "camera": "iDS",
+    "output_mode": "Data Only"
+}
