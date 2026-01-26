@@ -1,8 +1,10 @@
 from pygame import VIDEORESIZE
-from windows.menu_bar import MenuBar
-from UI.grid import Grid
-from UI.label import Label
-from UI.dropdownmenu import DropdownMenu
+from ..windows.menu_bar import MenuBar
+from ..UI.grid import Grid
+from ..UI.label import Label
+from ..UI.dropdownmenu import DropdownMenu
+from ..UI.inputfield import InputField
+from ..UI.toggle import Toggle
 
 class SettingsScene:
     def __init__(self, screen, settings, switch_scene_callback, save_settings_callback):
@@ -24,8 +26,8 @@ class SettingsScene:
         self.setup_settings_panel()
         self.update_layout(window_width, window_height)
         
-        self.pending_resolution = self.settings.saved_settings.get("resolution", [1920, 1080])
-        self.pending_display_flag = self.settings.saved_settings.get("display_flag", "RESIZABLE")
+        self.pending_resolution = self.settings.saved_settings["display"]["resolution"]
+        self.pending_display_flag = self.settings.saved_settings["display"]["RESIZABLE"]
         self.pending_language = self.settings.saved_settings.get("language", "English")
         self.pending_camera = self.settings.saved_settings.get("camera", "Daheng")
         return

@@ -1,10 +1,26 @@
 {
-    "resolution": [
-        1366,
-        768
-    ],
-    "display_flag": "RESIZABLE",
-    "language": "German",
-    "camera": "iDS",
-    "output_mode": "Data Only"
+    "display": {
+        "resolution": [1366, 768],
+        "display_flag": "RESIZABLE",
+        "fps": 30
+    },
+    "camera": {
+        "device": "Pi Camera",
+        "resolution": [1920, 1080],
+        "exposure": "auto",
+        "gain": 1.0
+    },
+    "motors": {
+        "x_steps_per_mm": 200,
+        "y_steps_per_mm": 200,
+        "z_steps_per_mm": 400
+    },
+    "processing": {
+        "output_mode": "Data Only",
+        "save_path": "/home/pi/images"
+    },
+    "interface": {
+        "language": "German",
+        "theme": "dark"
+    }
 }

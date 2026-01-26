@@ -1,4 +1,5 @@
 pygame
 numpy
 opencv-python
-pyueye
+pigpio
+picamera2
