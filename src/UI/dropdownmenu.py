@@ -1,19 +1,24 @@
 from pygame import draw, Rect, font, MOUSEBUTTONDOWN
 from UI.base_ui import BaseUI
+from typing import List, Optional, Tuple, Any
 
 class DropdownMenu(BaseUI):
+    #Constants
+    MIN_FONT_SIZE = 8
+    TRIANGLE_SIZE_RATIO = 0.25
+    TEXT_PADDING = 5
     def __init__(self,
-                 rel_pos=(0,0),
-                 rel_size = None,
-                 options=None,
-                 s_font=None,
-                 fontsize=32,
-                 selected_index=0,
-                 color_inactive=(100,100,100),
-                 color_active=(150,150,150),
-                 text_color=(0,0,0),
-                 background_color=(200,200,200),
-                 reference_resolution=(1920,1080)):
+                 rel_pos:Tuple[float,float]=(0,0),
+                 rel_size:Optional[Tuple[float,float]] = None,
+                 options:Optional[List[Any]]=None,
+                 s_font:Optional[font.Font]=None,
+                 fontsize:int=32,
+                 selected_index:int=0,
+                 color_inactive:Tuple[int,int,int]=(100,100,100),
+                 color_active:Tuple[int,int,int]=(150,150,150),
+                 text_color:Tuple[int,int,int]=(0,0,0),
+                 background_color:Tuple[int,int,int]=(200,200,200),
+                 reference_resolution:Tuple[int,int]=(1920,1080)):
         """
         Initialize the DropdownMenu
         
@@ -41,13 +46,11 @@ class DropdownMenu(BaseUI):
         self.text_color = text_color
         self.background_color = background_color
         self.expanded = False
-        self.font=s_font or font.SysFont(None,fontsize)
-        self.text = ""
-        self.rendered_text = self.font.render(self.text,True,text_color)
+        self.font = s_font or font.SysFont(None,fontsize)
         self.option_rects = []
         return
     
-    def update_layout(self, window_size):
+    def update_layout(self, window_size:Tuple[int,int])->None:
         """
         Update dropdown menu size and position based on window size
         
@@ -59,12 +62,12 @@ class DropdownMenu(BaseUI):
         _, _, _, abs_height = self.calculate_absolute_rect(window_size)
         if not self.s_font:
             target_fontsize = int(abs_height * 0.65)
-            self.fontsize = max(8, min(target_fontsize, int(abs_height * 0.9)))
+            self.fontsize = max(self.MIN_FONT_SIZE, min(target_fontsize, int(abs_height * 0.9)))
             self.font = font.SysFont(None, self.fontsize)
         self._update_option_rects()
         return
 
-    def handle_events(self, events):
+    def handle_events(self, events:list)->None:
         """
         Handle pygame events
         
@@ -84,8 +87,6 @@ class DropdownMenu(BaseUI):
                             break
                     else:
                         self.expanded = False
-                else:
-                    self.expanded = False
         return
     
     def update(self):
@@ -95,7 +96,7 @@ class DropdownMenu(BaseUI):
         """
         pass
             
-    def draw(self, surface):
+    def draw(self, surface)->None:
         """
         Draw the dropdown menu to the screen
         
@@ -104,52 +105,50 @@ class DropdownMenu(BaseUI):
         """
         draw.rect(surface, self.background_color, self.rect)
         if self.options and 0 <= self.selected_index < len(self.options):
-            self.text = str(self.options[self.selected_index])
+            text = str(self.options[self.selected_index])
         else:
-            self.text = ""
-        txt_surf = self.font.render(self.text, True, self.text_color)
-        padding = 5
-        text_x = self.rect.x + padding
+            text = ""
+        txt_surf = self.font.render(text, True, self.text_color)
+        text_x = self.rect.x + self.TEXT_PADDING
         text_y = self.rect.y + (self.rect.height - txt_surf.get_height()) / 2
         surface.blit(txt_surf, (text_x, text_y))
-        triangle_center_x = self.rect.x + self.rect.width - 15
-        triangle_center_y = self.rect.y + self.rect.height / 2
-        tri_size = min(6, self.rect.height * 0.25)
+        triangle_points = self._get_triangle_points()
+        draw.polygon(surface, self.text_color, triangle_points)
         if self.expanded:
-            points = [
+            for i,option in enumerate(self.options):
+                if i < len(self.option_rects):
+                    option_rect = self.option_rects[i]
+                    draw.rect(surface,self.color_inactive,option_rect,border_radius=2)
+                    option_text = self.font.render(str(option),True,self.text_color)
+                    option_x = option_rect.x + self.TEXT_PADDING
+                    option_y = option_rect.y + (option_rect.height-option_text.get_height())/2
+                    surface.blit(option_text,(option_x,option_y))
+        return
+    
+    def _get_triangle_points(self)->List[Tuple[float,float]]:
+        '''
+        Calculate triangle points for dropdown indicator
+        
+        Returns:
+            List of 3 points forming the triangle
+        '''
+        triangle_center_x = self.rect.x + self.rect.width - 15
+        triangle_center_y = self.rect.y + self.rect.height/2
+        tri_size = min(6,self.rect.height*self.TRIANGLE_SIZE_RATIO)
+        if self.expanded:
+            return [
                 (triangle_center_x, triangle_center_y - tri_size),
                 (triangle_center_x - tri_size, triangle_center_y + tri_size),
                 (triangle_center_x + tri_size, triangle_center_y + tri_size)
             ]
-            for i, option in enumerate(self.options):
-                if i < len(self.option_rects):
-                    option_rect = self.option_rects[i]
-                    draw.rect(surface, self.color_inactive, option_rect, border_radius=2)
-                    option_text = self.font.render(str(option), True, self.text_color)
-                    option_x = option_rect.x + padding
-                    option_y = option_rect.y + (option_rect.height - option_text.get_height()) / 2
-                    surface.blit(option_text, (option_x, option_y))
         else:
-            points = [
+            return [
                 (triangle_center_x, triangle_center_y + tri_size),
                 (triangle_center_x - tri_size, triangle_center_y - tri_size),
                 (triangle_center_x + tri_size, triangle_center_y - tri_size)
             ]
-        draw.polygon(surface, self.text_color, points)
-        return
 
-    def update_label_pos(self):
-        for i in range(len(self.options)):
-            self.option_rects[i].topleft = (
-                self.rect.x,
-                self.rect.y + (i + 1) * self.rect.height - i
-            )
-        return
-
-    def update(self):
-        pass
-
-    def _update_option_rects(self):
+    def _update_option_rects(self)->None:
         """
         Update the rectangles for dropdown options based on current rect
         """
@@ -164,7 +163,7 @@ class DropdownMenu(BaseUI):
             self.option_rects.append(option_rect)
         return
     
-    def set_options(self, options, selected_index=0):
+    def set_options(self, options:List[Any], selected_index:int=0)->None:
         """
         Update the list of options
         
@@ -177,7 +176,7 @@ class DropdownMenu(BaseUI):
         self._update_option_rects()
         return
     
-    def get_selected(self):
+    def get_selected(self)->Optional[Any]:
         """
         Get the currently selected option
         
@@ -188,7 +187,7 @@ class DropdownMenu(BaseUI):
             return self.options[self.selected_index]
         return None
     
-    def get_selected_index(self):
+    def get_selected_index(self)->int:
         """
         Get the index of the currently selected option
         
@@ -197,7 +196,7 @@ class DropdownMenu(BaseUI):
         """
         return self.selected_index
     
-    def set_selected_index(self, index):
+    def set_selected_index(self, index:int)->None:
         """
         Set the selected option by index
         
