@@ -435,5 +435,8 @@ class AlgorithmScene():
                     return node.get('parameters', [])
         return []
     
+    def on_scene_enter(self)->None:
+        pass
+    
     def cleanup(self):
         pass

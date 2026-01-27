@@ -1,5 +1,6 @@
 from windows.base_window import BaseWindow
 from UI.button import Button
+'''
 from tkinter import Tk,filedialog
 from shutil import copy2
 import json
@@ -7,7 +8,9 @@ from csv import DictWriter
 from pathlib import Path
 from pygame import image
 from datetime import datetime
-import traceback
+from traceback import print_exc
+'''
+from typing import Tuple
 
 class MenuBar(BaseWindow):
     def __init__(
@@ -17,7 +20,7 @@ class MenuBar(BaseWindow):
             rel_pos=(0.0, 0.0),
             rel_size=(1.0, 0.05),
             switch_scene_callback=None,
-            save_settings_callback=None,
+            save_settings=lambda :None,
             s_font=None,
             fontsize=32,
             base_color=(70, 70, 200),
@@ -31,10 +34,9 @@ class MenuBar(BaseWindow):
             reference_resolution=(1920, 1080)
             ):
         super().__init__(rel_pos, rel_size, reference_resolution)
-        self.scene_instance=scene_instance
         self.scene = scene
         self.switch_scene_callback = switch_scene_callback
-        self.save_settings_callback = save_settings_callback
+        self.save_settings = save_settings
         self.s_font = s_font
         self.fontsize = fontsize
         self.base_color = base_color
@@ -45,68 +47,67 @@ class MenuBar(BaseWindow):
         self.disabled_text_color = disabled_text_color
         self.border_radius = border_radius
         self.text_padding = text_padding
-        self.button_labels = ["Settings",                                                                   #Base button labels
-                              "Image Acquisition",
-                              "Algorithms",
-                              "Processing"]
-        self.callbacks = [lambda: self.switch_scene("settings"),                                            #Base callbacks
-                        lambda: self.switch_scene("image_acquisition"),
-                        lambda: self.switch_scene("algorithms"),
-                        lambda: self.switch_scene("processing")]
-        #add the missing Buttons and callbacks depending on the scene
-        if scene == "image_acquisition":
-            self.button_labels.append("Load Images")
-            self.button_labels.append("Save Images")
-            self.callbacks.append(lambda: self._load_images())
-            self.callbacks.append(lambda: self._save_images())
-        elif scene == "algorithms":
-            self.button_labels.append("Load Pipeline")
-            self.button_labels.append("Save Pipeline")
-            self.callbacks.append(lambda: self._load_pipeline())
-            self.callbacks.append(lambda: self._save_pipeline())
-        elif scene == "processing":
-            self.button_labels.append("Load Images")
-            self.button_labels.append("Save Output")
-            self.callbacks.append(lambda: self._load_images())
-            self.callbacks.append(lambda: self._save_output())
-        elif scene == "settings":
-            self.button_labels.append("Save Settings")
-            self.button_labels.append("Close")
-            self.callbacks.append(lambda: self._save_settings())
-            self.callbacks.append(lambda: self.switch_scene("quit"))
-        self.menu_buttons = []                                                                              #List to hold the Buttons
-        self._create_buttons()
+        self._setup_buttons()
         return
 
-    def update_layout(self,window_size):
+    def update_layout(self,window_size:Tuple[int,int])->None:
         super().update_layout(window_size)
         for button in self.menu_buttons:
             button.update_layout((self.window_width,self.window_height))
         return
 
-    def handle_events(self,events):
+    def handle_events(self,events:list)->None:
         self.handle_resize_events(events)
         for button in self.menu_buttons:
             button.handle_events(events)
         return
 
-    def update(self):
+    def update(self)->None:
         pass
 
-    def draw(self,screen):
+    def draw(self,screen)->None:
         for button in self.menu_buttons:
             button.draw(screen)
         return
-
-    def switch_scene(self,call):
-        """Switch to a different scene"""
-        self.switch_scene_callback(call)
-        return
     
-    def _create_buttons(self):
-        """Create menu buttons based on current scene"""
-        layouts = self._calculate_button_layouts()
-        for i in range(6):
+    def _setup_buttons(self)->None:
+        self.button_labels = ["Settings", "Image Acquisition", "Algorithms", "Processing"]
+        self.callbacks = [
+            lambda: self.switch_scene("settings"),
+            lambda: self.switch_scene("image_acquisition"),
+            lambda: self.switch_scene("algorithms"),
+            lambda: self.switch_scene("processing")
+        ]
+        #When methodes are moved, change callbacks
+        if self.scene == "image_acquisition":
+            self.button_labels.append("Load Images")
+            self.button_labels.append("Save Images")
+            self.callbacks.append(lambda: self._load_images())
+            self.callbacks.append(lambda: self._save_images())
+        elif self.scene == "algorithms":
+            self.button_labels.append("Load Pipeline")
+            self.button_labels.append("Save Pipeline")
+            self.callbacks.append(lambda: self._load_pipeline())
+            self.callbacks.append(lambda: self._save_pipeline())
+        elif self.scene == "processing":
+            self.button_labels.append("Load Images")
+            self.button_labels.append("Save Output")
+            self.callbacks.append(lambda: self._load_images())
+            self.callbacks.append(lambda: self._save_output())
+        elif self.scene == "settings":
+            self.button_labels.append("Save Settings")
+            self.button_labels.append("Close Application")
+            self.callbacks.append(lambda: self.save_settings())
+            self.callbacks.append(lambda: self.switch_scene("quit"))
+        self.menu_buttons = []
+        layouts = self._positions(
+            rows=1,
+            cols=len(self.button_labels),
+            rel_pos=self.rel_pos,
+            rel_size=self.rel_size,
+            gap=0.001
+        )
+        for i in range(len(self.button_labels)):
             button = Button(
                 text=self.button_labels[i],
                 rel_pos=layouts[i][0],
@@ -126,27 +127,22 @@ class MenuBar(BaseWindow):
             )
             self.menu_buttons.append(button)
         #Deactivate the Button that the current Scene represents
-        if self.scene == "image_acquisition":
+        if self.scene == "settings":
+            self.menu_buttons[0].set_enabled(False)
+        elif self.scene == "image_acquisition":
             self.menu_buttons[1].set_enabled(False)
         elif self.scene == "algorithms":
             self.menu_buttons[2].set_enabled(False)
         elif self.scene == "processing":
             self.menu_buttons[3].set_enabled(False)
-        elif self.scene == "settings":
-            self.menu_buttons[0].set_enabled(False)
         return
-    
-    def _calculate_button_layouts(self):
-        """Calculate button positions and sizes"""
-        return self._positions(
-            rows=1,
-            cols=len(self.button_labels),
-            rel_pos=self.rel_pos,
-            rel_size=self.rel_size,
-            gap=0.001
-        )
 
-    def _positions(self,rows,cols,rel_pos,rel_size,gap):
+    def switch_scene(self,call:str)->None:
+        """Switch to a different scene"""
+        self.switch_scene_callback(call)
+        return
+
+    def _positions(self,rows:int,cols:int,rel_pos:float,rel_size:float,gap:float)->list:
         """
         Calculate grid positions for buttons
         
@@ -176,7 +172,9 @@ class MenuBar(BaseWindow):
                 layouts.append((pos, size))
         return layouts
     
-    def _load_images(self):
+    '''
+    #Move to "image_acquisition" and "processing" scene (maybe base class)
+    def _load_images(self)->None:
         try:
             root = Tk()
             root.withdraw()
@@ -208,6 +206,7 @@ class MenuBar(BaseWindow):
             print(f"Error loading images: {e}")
         return
 
+    #Move to "image_acquisition" scene
     def _save_images(self):
         try:
             working_dir = self.scene_instance.working_dir
@@ -240,6 +239,7 @@ class MenuBar(BaseWindow):
             print(f"Error saving images: {e}")
         return
     
+    #Move to "algorithm" scene
     def _load_pipeline(self):
         """Load a processing pipeline from a JSON file"""
         try:
@@ -266,10 +266,10 @@ class MenuBar(BaseWindow):
             print(f"Pipeline loaded from: {filepath}")
         except Exception as e:
             print(f"Error loading pipeline: {e}")
-            import traceback
-            traceback.print_exc()
+            print_exc()
         return
 
+    #Move to "algorithm" scene
     def _save_pipeline(self):
         """Save the current processing pipeline to a JSON file"""
         try:
@@ -301,6 +301,7 @@ class MenuBar(BaseWindow):
             print(f"Error saving pipeline: {e}")
         return
     
+    #Move to "processing" scene
     def _save_output(self):
         try:
             output_images = self.scene_instance.output_images
@@ -349,9 +350,10 @@ class MenuBar(BaseWindow):
                 print(f"Unknown output mode: {output_mode}")
         except Exception as e:
             print(f"Error saving output: {e}")
-            traceback.print_exc()
+            print_exc()
         return
     
+    #Move to "processing" scene
     def _save_images_only(self, output_images, save_path):
         """Save only the processed images"""
         for i, img in enumerate(output_images):
@@ -360,6 +362,7 @@ class MenuBar(BaseWindow):
         print(f"Saved {len(output_images)} images to {save_path}")
         return
     
+    #Move to "processing" scene
     def _save_full_documentation(self, output_images, save_path):
         """Save images with full documentation"""
         doc_dir = save_path / f"processing_doc_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
@@ -431,6 +434,7 @@ Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
         print(f"Saved full documentation to: {doc_dir}")
         return
     
+    #Move to "processing" scene
     def _save_data_only(self, output_images, save_path):
         """Save only data without images"""
         data_dir = save_path / f"data_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
@@ -478,7 +482,7 @@ Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
                 print(f"Created CSV: {csv_filename}")
             except Exception as e:
                 print(f"Error writing CSV for {item['image_name']}: {e}")
-                traceback.print_exc()
+                print_exc()
         
         if csv_count > 0:
             print(f"Saved {csv_count} CSV files to: {data_dir}")
@@ -488,8 +492,6 @@ Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
     
     def _save_settings(self):
         """Save settings from the settings scene"""
-        if hasattr(self.scene_instance, 'save_settings'):
-            self.scene_instance.save_settings()
-        if self.save_settings_callback:
-            self.save_settings_callback()
+        self.save_settings_callback()
         return
+    '''

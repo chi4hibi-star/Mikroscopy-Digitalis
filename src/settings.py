@@ -1,8 +1,7 @@
 from json import dump, load
 
 class Settings():
-    def __init__(self,save_settings_callback):
-        self.save_settings_callback = save_settings_callback
+    def __init__(self):
         self.saved_settings = self.load_settings()
         return
 
@@ -18,8 +17,6 @@ class Settings():
         with open("settings.json", "w") as f:
             dump(self.saved_settings, f, indent=4)
         self.saved_settings = self.load_settings()
-        if category == "display" and "fps" in kwargs:
-            self.save_settings_callback(kwargs["fps"])
         return
 
     def load_settings(self):
