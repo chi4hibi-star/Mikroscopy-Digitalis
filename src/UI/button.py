@@ -88,7 +88,7 @@ class Button(BaseUI):
         if not self.s_font and self.rect.width > 0 and self.rect.height > 0:
             max_w = self.rect.width - 2 * self.text_padding
             max_h = self.rect.height - 2 * self.text_padding
-            self.fontsize = self._calculate_optimal_font_size(self.text,max_w,max_h)
+            self.fontsize = self.calculate_optimal_font_size(self.text,max_w,max_h)
             self.font = font.SysFont(None,self.fontsize)
             self._render_text(self.text_color)
         return
@@ -152,32 +152,6 @@ class Button(BaseUI):
         surface.blit(self.rendered_text, text_rect.topleft)
         return
     
-    def _calculate_optimal_font_size(self,text:str, max_width:int, max_height:int)->int:
-        '''
-        Calculate optimal font size using binary search
-        
-        args:
-            text: Text to fit
-            max_width: Maximum width available
-            max_height: Maximum height available
-
-        Returns:
-            Optimal font size
-        '''
-        min_size = self.MIN_FONT_SIZE
-        max_size = int(self.base_fontsize * self.MAX_FONT_SCALE)
-        best_size = min_size
-        while min_size <= max_size:
-            mid_size = (min_size + max_size) // 2
-            test_font = font.SysFont(None,mid_size)
-            test_render = test_font.render(text,True,self.text_color)
-            if test_render.get_width() <= max_width and test_render.get_height() <= max_height:
-                best_size = mid_size
-                mid_size += 1
-            else:
-                max_size = mid_size - 1
-        return best_size
-    
     def _render_text(self, color:Tuple[int,int,int])->None:
         '''
         Render text with current font and cache it
@@ -213,7 +187,7 @@ class Button(BaseUI):
         if not self.s_font and self.rect.width > 0 and self.rect.height > 0:
             max_w = self.rect.width - 2 * self.text_padding
             max_h = self.rect.height - 2 * self.text_padding
-            self.fontsize = self._calculate_optimal_font_size(self.text, max_w, max_h)
+            self.fontsize = self.calculate_optimal_font_size(self.text, max_w, max_h)
             self.font = font.SysFont(None, self.fontsize)
         self._render_text(self._last_text_color or self.text_color)
         return
