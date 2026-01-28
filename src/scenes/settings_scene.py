@@ -42,7 +42,7 @@ class SettingsScene:
             rel_pos=(0.0, 0.0),
             rel_size=(1.0, 0.05),
             switch_scene_callback=self.switch_scene_callback,
-            save_settings = self.save_settings,
+            call_methodes = [self.save_settings],
             reference_resolution=self.settings.saved_settings["display"]["resolution"]
         )
         return

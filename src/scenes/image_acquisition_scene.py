@@ -2,18 +2,18 @@ from pygame import VIDEORESIZE,surfarray,image
 from pathlib import Path
 from shutil import rmtree
 from datetime import datetime
-from windows.file_viewer import FileViewer
-from windows.menu_bar import MenuBar
-from windows.camera_view import CameraView
-from windows.control_panel import ControlPanel
-from windows.histogram_view import HistogramView
-from camera import CameraThread
+from ..windows.file_viewer import FileViewer
+from ..windows.menu_bar import MenuBar
+from ..windows.camera_view import CameraView
+from ..windows.control_panel import ControlPanel
+from ..windows.histogram_view import HistogramView
+from ..camera import CameraThread
+from typing import Tuple
 
 class ImageAcquisitionScene():
     def __init__(self,screen,settings,switch_scene_callback):
         self.settings = settings
         self.switch_scene_callback = switch_scene_callback
-        self.window_width, self.window_height = screen.get_size()
 
         self.setup_menu_bar()
         self.setup_camera_view()
@@ -22,32 +22,32 @@ class ImageAcquisitionScene():
         self.setup_file_viewer()
         self.setup_working_directory()
 
-        self.update_layout(self.window_width,self.window_height)
+        self.update_layout(screen.get_size())
 
         self.live_frame = None
         self.camera_thread = None
         self.init_camera()
+        self._prev_file_selection = []
         return
     
-    def update_layout(self,window_width,window_height):
-        self.menu_bar.update_layout((window_width,window_height))
-        self.camera_view.update_layout((window_width,window_height))
-        self.histogram_view.update_layout((window_width,window_height))
-        self.control_panel.update_layout((window_width,window_height))
-        self.file_viewer.update_layout((window_width,window_height))
+    def update_layout(self,window_size:Tuple[int,int])->None:
+        self.menu_bar.update_layout(window_size)
+        self.camera_view.update_layout(window_size)
+        self.histogram_view.update_layout(window_size)
+        self.control_panel.update_layout(window_size)
+        self.file_viewer.update_layout(window_size)
         return
 
-    def handle_events(self,events):
-        for event in events:
-            if event.type == VIDEORESIZE:
-                self.update_layout(event.w,event.h)
+    def handle_events(self,events:list)->None:
+        resize_events = [e for e in events if e.type == VIDEORESIZE]
+        if resize_events:
+            self.update_layout((resize_events[-1].w,resize_events[-1].h))
         self.menu_bar.handle_events(events)
         self.camera_view.handle_events(events)
         self.control_panel.handle_events(events)
         self.file_viewer.handle_events(events)
-        prev_selected = getattr(self, '_prev_file_selection', [])
         current_selected = self.file_viewer.get_selected_files()
-        if current_selected != prev_selected and len(current_selected) > 0:
+        if current_selected != self._prev_file_selection and len(current_selected) == 1:
             self.load_selected_image()
         self._prev_file_selection = current_selected
         return
@@ -87,7 +87,8 @@ class ImageAcquisitionScene():
             rel_pos = (0.0,0.0),
             rel_size = (1.0,0.05),
             switch_scene_callback=self.switch_scene_callback,
-            reference_resolution=self.settings.saved_settings["resolution"]
+            call_methodes=[self._load_images,self._save_images],
+            reference_resolution=self.settings.saved_settings["display"]["resolution"]
         )
 
     def setup_camera_view(self):
@@ -148,10 +149,9 @@ class ImageAcquisitionScene():
         self.file_viewer.load_directory(str(self.working_dir))
         return
     
-    def init_camera(self):
+    def init_camera(self)->None:
         try:
-            camera_type = self.settings.saved_settings.get("camera", "Daheng")
-            self.camera_thread = CameraThread(camera_type, histogram_interval=3)
+            self.camera_thread = CameraThread(histogram_interval=3)
             if not self.camera_thread.start():
                 print(f"Failed to start camera: {self.camera_thread.last_error}")
                 self.camera_thread = None
@@ -225,6 +225,70 @@ class ImageAcquisitionScene():
             print(f"Loaded image: {image_path.name}")
         except Exception as e:
             print(f"Error loading image: {e}")
+        return
+    
+    def _load_images(self)->None:
+        try:
+            root = Tk()
+            root.withdraw()
+            working_dir = self.scene_instance.working_dir
+            initial_dir = str(working_dir) if working_dir.exists() else None
+            filepaths = filedialog.askopenfilenames(
+                title="Select Images to Load",
+                filetypes=[
+                    ("Image files", "*.png *.jpg *.jpeg *.bmp *.gif *.tiff *.webp"),
+                    ("All files", "*.*")
+                ],
+                initialdir=initial_dir
+            )
+            root.destroy()
+            if not filepaths:
+                return
+            working_dir = self.scene_instance.working_dir
+            if not working_dir.exists():
+                working_dir.mkdir(parents=True)
+            count = 0
+            for filepath in filepaths:
+                source_file = Path(filepath)
+                copy2(source_file, working_dir / source_file.name)
+                count += 1
+            if count > 0:
+                print(f"Loaded {count} images")
+                self.scene_instance.file_viewer.load_directory(str(working_dir))
+        except Exception as e:
+            print(f"Error loading images: {e}")
+        return
+
+    def _save_images(self):
+        try:
+            working_dir = self.scene_instance.working_dir
+            if not working_dir.exists() or not any(working_dir.iterdir()):
+                print("No images to save")
+                return
+            root = Tk()
+            root.withdraw()
+            initial_dir = str(working_dir.parent) if working_dir.exists() else None
+            filepath = filedialog.asksaveasfilename(
+                title="Save Images As (will add numbers)",
+                defaultextension=".png",
+                filetypes=[("PNG files", "*.png"), ("JPEG files", "*.jpg"), ("All files", "*.*")],
+                initialdir=initial_dir,
+                initialfile="image_001.png"
+            )
+            root.destroy()
+            if filepath:
+                save_path = Path(filepath).parent
+                base_name = Path(filepath).stem
+                extension = Path(filepath).suffix
+                count = 0
+                for i, file in enumerate(working_dir.iterdir()):
+                    if file.is_file():
+                        new_filename = f"{base_name}_{i:03d}{extension}"
+                        copy2(file, save_path / new_filename)
+                        count += 1
+                print(f"Saved {count} images to: {save_path}")
+        except Exception as e:
+            print(f"Error saving images: {e}")
         return
     
     def cleanup(self):

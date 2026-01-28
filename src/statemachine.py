@@ -1,4 +1,4 @@
-import pygame
+from pygame import display, FULLSCREEN, RESIZABLE
 from settings import Settings
 from scenes.settings_scene import SettingsScene
 from scenes.image_acquisition_scene import ImageAcquisitionScene
@@ -46,12 +46,12 @@ class Statemachine:
     #Create new Display and set mode
     def new_display(self):
         if self.settings.saved_settings["display"]["display_flag"] == "RESIZABLE":
-            self.display_surface = pygame.display.set_mode(
-                self.settings.saved_settings["display"]["resolution"], pygame.RESIZABLE)
+            self.display_surface = display.set_mode(
+                self.settings.saved_settings["display"]["resolution"], RESIZABLE)
         elif self.settings.saved_settings["display"]["display_flag"] == "FULLSCREEN":
-            self.display_surface = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+            self.display_surface = display.set_mode((0, 0), FULLSCREEN)
         elif self.settings.saved_settings["display"]["display_flag"] == "FIXED":
-            self.display_surface = pygame.display.set_mode(
+            self.display_surface = display.set_mode(
                 self.settings.saved_settings["display"]["resolution"])
         return
     

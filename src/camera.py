@@ -1,110 +1,79 @@
-from threading import Event,Lock,Thread
-from queue import Queue,Full,Empty
+from threading import Event, Lock, Thread
+from queue import Queue, Full, Empty
 from pygame import surfarray
-from cv2 import cvtColor, COLOR_BGR2RGB, COLOR_RGB2BGR, flip, calcHist
-from numpy import flip, stack, frombuffer, uint8
-from gxipy_local import DeviceManager
-from pyueye.ueye import (HIDS, is_InitCamera, IS_SUCCESS, IS_CM_BGR8_PACKED,
-                             is_SetColorMode, IS_RECT, is_AOI, IS_AOI_IMAGE_GET_AOI,
-                             sizeof, c_mem_p, is_AllocImageMem, is_SetImageMem,
-                             is_FreezeVideo, IS_WAIT, c_char, is_ExitCamera)
-from ctypes import c_int as eyeint
+from cv2 import calcHist
+from numpy import stack
+from picamera2 import Picamera2
+#from libcamera import controls         #for camara parameter from settings
 
 class CameraThread:
-    def __init__(self, camera_type: str = "Daheng", histogram_interval: int = 3):
+    def __init__(self, histogram_interval: int = 3):
         '''
-        supported camera_types are: Daheng, iDS
+        Pi Camera thread with histogram calculation
         histogram_interval: calculate histogram every N frames
         '''
-        self.camera_type = camera_type
         self.histogram_interval = histogram_interval
         self.cam = None
         self._thread = None
         self._stop_event = Event()
+        self._pause_event = Event()
         self._frame_queue = Queue(maxsize=2)
         self._histogram_queue = Queue(maxsize=1)
         self._lock = Lock()
-        self.camwidth = None
-        self.camheight = None
-        self.mem_ptr = None
-        self.mem_id = None
         self.is_running = False
-        self.last_error = None
+        self.is_paused = False
         self._frame_counter = 0
         return
     
-    def start(self):
+    def start(self)->bool:
         if self.is_running:
             return True
         if not self._initialize_camera():
             return False
         self._stop_event.clear()
+        self._pause_event.clear()
         self._thread = Thread(target=self._capture_loop, daemon=True)
         self._thread.start()
         self.is_running = True
-        print(f"Camera thread started for {self.camera_type}")
+        print("Pi Camera thread started")
         return True
     
     def _initialize_camera(self):
         try:
-            if self.camera_type == "Daheng":
-                return self._initialize_daheng()
-            elif self.camera_type == "iDS":
-                return self._initialize_ids()
-            else:
-                self.last_error = f"Unknown camera type: {self.camera_type}"
-                return False
+            with self._lock:
+                self.cam = Picamera2()
+                config = self.cam.create_preview_configuration()
+                self.cam.configure(config)
+                self.cam.start()
+                self.cam.set_controls({"AeEnable": True, "AwbEnable": True})
+            return True
         except Exception as e:
-            self.last_error = f"Camera initialization failed: {e}"
+            self.last_error = f"Pi Camera initialization failed: {e}"
             print(self.last_error)
             return False
     
-    def _initialize_daheng(self):
-        with self._lock:
-            device_manager = DeviceManager()
-            num, _ = device_manager.update_device_list()
-            if num == 0:
-                self.last_error = "No Daheng camera found"
-                return False
-            self.cam = device_manager.open_device_by_index(0)
-            self.cam.stream_on()
-        return True
+    def pause(self)->None:
+        """Pause frame capture without stopping the camera"""
+        self.is_paused = True
+        self._pause_event.set()
+        return
     
-    def _initialize_ids(self):
-        with self._lock:
-            self.cam = HIDS(0)
-            ret = is_InitCamera(self.cam, None)
-            if ret != IS_SUCCESS:
-                self.last_error = "Could not initialize iDS camera"
-                return False
-            bits_per_pixel = 24
-            color_mode = IS_CM_BGR8_PACKED
-            ret = is_SetColorMode(self.cam, color_mode)
-            if ret != IS_SUCCESS:
-                self.last_error = "Could not set color mode"
-                return False
-            rect_aoi = IS_RECT()
-            is_AOI(self.cam, IS_AOI_IMAGE_GET_AOI, rect_aoi, sizeof(rect_aoi))
-            self.camwidth = int(rect_aoi.s32Width)
-            self.camheight = int(rect_aoi.s32Height)
-            self.mem_ptr = c_mem_p()
-            self.mem_id = eyeint()
-            is_AllocImageMem(self.cam, self.camwidth, self.camheight, 
-                            bits_per_pixel, self.mem_ptr, self.mem_id)
-            is_SetImageMem(self.cam, self.mem_ptr, self.mem_id)
-        return True
+    def resume(self):
+        """Resume frame capture"""
+        self.is_paused = False
+        self._pause_event.clear()
+        return
     
     def _calculate_histogram(self, img_array):
         try:
-            bgr_frame = cvtColor(img_array, COLOR_RGB2BGR)
-            if len(bgr_frame.shape) == 2:
-                hist = calcHist([bgr_frame], [0], None, [256], [0, 256])
+            if len(img_array.shape) == 2:
+                hist = calcHist([img_array], [0], None, [256], [0, 256])
                 return [hist]
-            elif len(bgr_frame.shape) == 3:
+            elif len(img_array.shape) == 3:
                 hist = [
-                    calcHist([bgr_frame], [0], None, [256], [0, 256]),  # Blue
-                    calcHist([bgr_frame], [1], None, [256], [0, 256]),  # Green
-                    calcHist([bgr_frame], [2], None, [256], [0, 256])   # Red
+                    calcHist([img_array], [0], None, [256], [0, 256]),  # Red
+                    calcHist([img_array], [1], None, [256], [0, 256]),  # Green
+                    calcHist([img_array], [2], None, [256], [0, 256])   # Blue
                 ]
                 return hist
         except Exception as e:
@@ -112,16 +81,14 @@ class CameraThread:
             return None
     
     def _capture_loop(self):
-        print(f"Capture loop started for {self.camera_type}")
+        print(f"Capture loop started for Pi Camera")
         while not self._stop_event.is_set():
             try:
+                if self._pause_event.is_set():
+                    self._pause_event.wait(timeout=0.2)
+                    continue
                 with self._lock:
-                    if self.camera_type == "Daheng":
-                        img_array = self._capture_daheng_frame()
-                    elif self.camera_type == "iDS":
-                        img_array = self._capture_ids_frame()
-                    else:
-                        break
+                    img_array = self._capture_frame
                 if img_array is not None:
                     surface = surfarray.make_surface(img_array)
                     try:
@@ -151,32 +118,19 @@ class CameraThread:
         print("Capture loop ended")
         return 
     
-    def _capture_daheng_frame(self):
+    def _capture_frame(self):
         if self.cam is None:
             return None
-        frame = self.cam.data_stream[0].get_image()
-        if frame is None:
+        try:
+            img_array = self.cam.capture_array("main")
+            if len(img_array.shape) == 3 and img_array.shape[2] == 3:
+                pass
+            if len(img_array.shape) == 2:
+                img_array = stack([img_array] * 3, axis=-1)
+            return img_array
+        except Exception as e:
+            print(f"Error capturing frame: {e}")
             return None
-        img_array = frame.get_numpy_array()
-        img_array = flip(img_array, axis=0)
-        if len(img_array.shape) == 2:
-            img_array = stack([img_array] * 3, axis=-1)
-        return img_array
-    
-    def _capture_ids_frame(self):
-        if self.cam is None or self.mem_ptr is None:
-            return None
-        ret = is_FreezeVideo(self.cam, IS_WAIT)
-        if ret != IS_SUCCESS:
-            return None
-        buffer_size = self.camheight * self.camwidth * 3
-        img_array = frombuffer(
-            (c_char * buffer_size).from_address(int(self.mem_ptr.value)),
-            dtype=uint8
-        ).reshape((self.camheight, self.camwidth, 3))
-        img_array = cvtColor(img_array, COLOR_BGR2RGB)
-        img_array = flip(img_array, axis=0)
-        return img_array
     
     def get_frame(self):
         try:
@@ -197,6 +151,7 @@ class CameraThread:
             return
         print("Stopping camera thread...")
         self._stop_event.set()
+        self._pause_event.set()
         if self._thread is not None:
             self._thread.join(timeout=5.0)
         self._cleanup_camera()
@@ -208,11 +163,8 @@ class CameraThread:
         try:
             with self._lock:
                 if self.cam is not None:
-                    if self.camera_type == "Daheng":
-                        self.cam.stream_off()
-                        self.cam.close_device()
-                    elif self.camera_type == "iDS":
-                        is_ExitCamera(self.cam)
+                    self.cam.stop()
+                    self.cam.close()
                     self.cam = None
         except Exception as e:
             print(f"Error during camera cleanup: {e}")

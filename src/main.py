@@ -1,14 +1,14 @@
-import pygame
+from pygame import init,display,time,event,QUIT,quit
 from statemachine import Statemachine
 from traceback import print_exc
 
 class Game():
     def __init__(self):
-        pygame.init()                                                                  #init pygame
-        pygame.display.set_caption('Image acquisition and processing')
+        init()                                                                  #init pygame
+        display.set_caption('Image acquisition and processing')
 
         self.running = True
-        self.clock = pygame.time.Clock()
+        self.clock = time.Clock()
         self.fps = 30
         self.state_machine = Statemachine(
             self._stop_game, self._change_fps
@@ -20,9 +20,9 @@ class Game():
     def run(self):
         try:
             while self.running:
-                events = pygame.event.get()
+                events = event.get()
                 for s_event in events:
-                    if s_event.type == pygame.QUIT:
+                    if s_event.type == QUIT:
                         self.running = False
                         break
                 if self.state_machine.current_scene:
@@ -30,13 +30,13 @@ class Game():
                     self.state_machine.current_scene.update()                                       #Call the update function of the current active Scene
                     self.state_machine.display_surface.fill((0,40,0))                               #Erase the last frame
                     self.state_machine.current_scene.draw(self.state_machine.display_surface)       #Call the draw function of the current active Scene
-                    pygame.display.flip()                                                                  #Show the frame
+                    display.flip()                                                                  #Show the frame
                     self.clock.tick(self.fps)                                                       #Hold set FPS (wait and calculate)
         except Exception as e:
             print(f"Error occurred: {e}")
             print_exc()
         self.cleanup()                                                      #cleanup anything that is left
-        pygame.quit()                                                                  #Quit Pygame
+        quit()                                                                  #Quit Pygame
         return
     
     def _stop_game(self):
