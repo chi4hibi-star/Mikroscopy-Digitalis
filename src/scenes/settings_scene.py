@@ -11,7 +11,7 @@ class SettingsScene:
                  screen,
                  settings,
                  switch_scene_callback,
-                 save_settings_callback,
+                 save_settings_callbacks,
                  previous_scene="image_acquisition"):
         """
         Initialize the Settings Scene
@@ -24,7 +24,7 @@ class SettingsScene:
         """
         self.settings = settings
         self.switch_scene_callback = switch_scene_callback
-        self.save_settings_callback = save_settings_callback
+        self.save_settings_callbacks = save_settings_callbacks
         self.previous_scene = previous_scene
         window_width, window_height = screen.get_size()
         self.current_window_size = (window_width, window_height)
@@ -148,7 +148,7 @@ class SettingsScene:
             text_color=(255, 255, 255),
             reference_resolution=res
         )
-        camera_options = ["Pi Camera", "iDS", "Daheng"]
+        camera_options = ["Pi Camera"]
         current_camera = self.settings.saved_settings["camera"]["device"]
         current_camera_idx = camera_options.index(current_camera) if current_camera in camera_options else 0
         self.camera_dropdown = DropdownMenu(
@@ -406,8 +406,8 @@ class SettingsScene:
                                     save_path=save_path)
             changes_made["processing"] = True
         for category, changed in changes_made.items():
-            if changed and category in self.save_settings_callback:
-                self.save_settings_callback[category]()
+            if changed and category in self.save_settings_callbacks:
+                self.save_settings_callbacks[category]()
         return
     
     def cancel_settings(self)->None:

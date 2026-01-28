@@ -1,7 +1,6 @@
 from threading import Event, Lock, Thread
 from queue import Queue, Full, Empty
 from pygame import surfarray
-from cv2 import calcHist
 from numpy import stack
 from picamera2 import Picamera2
 #from libcamera import controls         #for camara parameter from settings
@@ -10,22 +9,19 @@ class CameraThread:
     def __init__(self, histogram_interval: int = 3):
         '''
         Pi Camera thread with histogram calculation
-        histogram_interval: calculate histogram every N frames
         '''
-        self.histogram_interval = histogram_interval
         self.cam = None
         self._thread = None
         self._stop_event = Event()
         self._pause_event = Event()
         self._frame_queue = Queue(maxsize=2)
-        self._histogram_queue = Queue(maxsize=1)
         self._lock = Lock()
         self.is_running = False
         self.is_paused = False
-        self._frame_counter = 0
+        self.last_error = None
         return
     
-    def start(self)->bool:
+    def start(self) -> bool:
         if self.is_running:
             return True
         if not self._initialize_camera():
@@ -38,7 +34,7 @@ class CameraThread:
         print("Pi Camera thread started")
         return True
     
-    def _initialize_camera(self):
+    def _initialize_camera(self) -> bool:
         try:
             with self._lock:
                 self.cam = Picamera2()
@@ -64,31 +60,15 @@ class CameraThread:
         self._pause_event.clear()
         return
     
-    def _calculate_histogram(self, img_array):
-        try:
-            if len(img_array.shape) == 2:
-                hist = calcHist([img_array], [0], None, [256], [0, 256])
-                return [hist]
-            elif len(img_array.shape) == 3:
-                hist = [
-                    calcHist([img_array], [0], None, [256], [0, 256]),  # Red
-                    calcHist([img_array], [1], None, [256], [0, 256]),  # Green
-                    calcHist([img_array], [2], None, [256], [0, 256])   # Blue
-                ]
-                return hist
-        except Exception as e:
-            print(f"Error calculating histogram: {e}")
-            return None
-    
     def _capture_loop(self):
-        print(f"Capture loop started for Pi Camera")
+        print("Capture loop started for Pi Camera")
         while not self._stop_event.is_set():
             try:
                 if self._pause_event.is_set():
-                    self._pause_event.wait(timeout=0.2)
+                    self._pause_event.wait(timeout=0.1)
                     continue
                 with self._lock:
-                    img_array = self._capture_frame
+                    img_array = self._capture_frame()
                 if img_array is not None:
                     surface = surfarray.make_surface(img_array)
                     try:
@@ -99,24 +79,11 @@ class CameraThread:
                             self._frame_queue.put_nowait(surface)
                         except Empty:
                             pass
-                    self._frame_counter += 1
-                    if self._frame_counter >= self.histogram_interval:
-                        self._frame_counter = 0
-                        hist = self._calculate_histogram(img_array)
-                        if hist is not None:
-                            try:
-                                try:
-                                    self._histogram_queue.get_nowait()
-                                except Empty:
-                                    pass
-                                self._histogram_queue.put_nowait(hist)
-                            except Full:
-                                pass
             except Exception as e:
                 print(f"Error in capture loop: {e}")
                 self.last_error = str(e)
         print("Capture loop ended")
-        return 
+        return
     
     def _capture_frame(self):
         if self.cam is None:
@@ -136,13 +103,6 @@ class CameraThread:
         try:
             frame = self._frame_queue.get_nowait()
             return frame
-        except Empty:
-            return None
-    
-    def get_histogram(self):
-        try:
-            hist = self._histogram_queue.get_nowait()
-            return hist
         except Empty:
             return None
         

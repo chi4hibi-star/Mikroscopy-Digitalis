@@ -20,7 +20,7 @@ class MenuBar(BaseWindow):
             rel_pos=(0.0, 0.0),
             rel_size=(1.0, 0.05),
             switch_scene_callback=None,
-            call_methodes=[],
+            call_methods=[],
             s_font=None,
             fontsize=32,
             base_color=(70, 70, 200),
@@ -36,7 +36,7 @@ class MenuBar(BaseWindow):
         super().__init__(rel_pos, rel_size, reference_resolution)
         self.scene = scene
         self.switch_scene_callback = switch_scene_callback
-        self.call_methodes = call_methodes
+        self.call_methods = call_methods
         self.s_font = s_font
         self.fontsize = fontsize
         self.base_color = base_color
@@ -82,23 +82,23 @@ class MenuBar(BaseWindow):
         if self.scene == "settings":
             self.button_labels.append("Save Settings")
             self.button_labels.append("Close Application")
-            self.callbacks.append(lambda: self.call_methodes[0]())
+            self.callbacks.append(lambda: self.call_methods[0]())
             self.callbacks.append(lambda: self.switch_scene("quit"))
         elif self.scene == "image_acquisition":
             self.button_labels.append("Load Images")
             self.button_labels.append("Save Images")
-            self.callbacks.append(lambda: self.call_methodes[0]())
-            self.callbacks.append(lambda: self.call_methodes[1]())
+            self.callbacks.append(lambda: self.call_methods[0]())
+            self.callbacks.append(lambda: self.call_methods[1]())
         elif self.scene == "algorithms":
             self.button_labels.append("Load Pipeline")
             self.button_labels.append("Save Pipeline")
-            self.callbacks.append(lambda: self.call_methodes[0]())
-            self.callbacks.append(lambda: self.call_methodes[1]())
+            self.callbacks.append(lambda: self.call_methods[0]())
+            self.callbacks.append(lambda: self.call_methods[1]())
         elif self.scene == "processing":
             self.button_labels.append("Load Images")
             self.button_labels.append("Save Output")
-            self.callbacks.append(lambda: self.call_methodes[0]())
-            self.callbacks.append(lambda: self.call_methodes[1]())
+            self.callbacks.append(lambda: self.call_methods[0]())
+            self.callbacks.append(lambda: self.call_methods[1]())
         self.menu_buttons = []
         layouts = self._positions(
             rows=1,

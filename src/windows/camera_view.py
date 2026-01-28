@@ -1,5 +1,6 @@
 from pygame import Rect,font,draw,transform,mouse,MOUSEWHEEL,MOUSEBUTTONDOWN,MOUSEBUTTONUP,MOUSEMOTION
 from windows.base_window import BaseWindow
+from typing import Optional, Callable, Tuple
 
 class CameraView(BaseWindow):
     def __init__(self,
@@ -7,7 +8,8 @@ class CameraView(BaseWindow):
                  rel_size=(0.659, 0.609),
                  reference_resolution=(1920, 1080),
                  background_color=(0, 0, 0),
-                 border_color=(255, 0, 0)):
+                 border_color=(255, 0, 0),
+                 on_mode_change_callback: Optional[Callable[[bool], None]] = None):
         """
         Initialize the CameraView window
         
@@ -17,10 +19,12 @@ class CameraView(BaseWindow):
             reference_resolution: Reference resolution for scaling
             background_color: RGB color for background
             border_color: RGB color for border
+            on_mode_change_callback: Callback function(is_live) when view mode changes
         """
         super().__init__(rel_pos, rel_size, reference_resolution, background_color, border_color)
         self.border_rect = Rect(0, 0, 100, 100)
-        self.viewing_mode = "live"
+        self.is_live_view = True
+        self.on_mode_change_callback = on_mode_change_callback
         self.base_font_size = 48
         self.live_frame = None
         self.selected_image = None
@@ -33,9 +37,11 @@ class CameraView(BaseWindow):
         self.mouse_coords = None
         self.coord_font = None
         self.base_coord_font_size = 16
+        self._cached_rotated_image = None
+        self._cached_rotation_angle = None
         return
     
-    def update_layout(self, window_size):
+    def update_layout(self, window_size:Tuple[int,int])->None:
         """
         Update camera view size and position based on window size
         
@@ -58,7 +64,7 @@ class CameraView(BaseWindow):
         self.coord_font = font.SysFont(None, self.coord_font_size)
         return
     
-    def handle_events(self, events):
+    def handle_events(self, events:list)->None:
         """
         Handle pygame events
         
@@ -96,17 +102,13 @@ class CameraView(BaseWindow):
                         self.zoom_level = 100
         return
     
-    def update(self):
+    def update(self)->None:
         """
         Update the camera view state (called every frame)
         """
         mouse_pos = mouse.get_pos()
         if self.rect.collidepoint(mouse_pos):
-            display_frame = None
-            if self.viewing_mode == "live":
-                display_frame = self.live_frame
-            elif self.viewing_mode == "image":
-                display_frame = self.selected_image
+            display_frame = self._get_display_frame()
             if display_frame:
                 self.mouse_coords = self._get_image_coordinates(mouse_pos, display_frame)
             else:
@@ -115,7 +117,7 @@ class CameraView(BaseWindow):
             self.mouse_coords = None
         return
     
-    def draw(self, surface):
+    def draw(self, surface)->None:
         """
         Draw the camera view to the screen
         
@@ -124,15 +126,13 @@ class CameraView(BaseWindow):
         """
         draw.rect(surface, self.border_color, self.border_rect)
         draw.rect(surface, self.background_color, self.rect)
-        display_frame = None
-        if self.viewing_mode == "live":
-            display_frame = self.live_frame
-        elif self.viewing_mode == "image":
-            display_frame = self.selected_image
+        
+        display_frame = self._get_display_frame()
         if display_frame:
             self._draw_frame(surface, display_frame)
         else:
             self._draw_no_content_message(surface)
+        
         if self.mouse_coords and self.coord_font:
             coord_text = f"X: {self.mouse_coords[0]}, Y: {self.mouse_coords[1]}"
             text_surface = self.coord_font.render(coord_text, True, (255, 255, 255))
@@ -144,15 +144,62 @@ class CameraView(BaseWindow):
             surface.blit(text_surface, text_bg)
         return
     
+    def _get_display_frame(self):
+        """
+        Get the frame to display based on current view mode
+        
+        Returns:
+            Pygame surface or None
+        """
+        if self.is_live_view:
+            return self.live_frame
+        else:
+            return self.selected_image
+        
+    def _get_rotated_frame(self, frame):
+        """
+        Get rotated frame - uses cache for selected images, rotates live frames each time
+        
+        Args:
+            frame: Original pygame surface
+            
+        Returns:
+            Rotated pygame surface
+        """
+        if self.rotation_angle == 0:
+            return frame
+        if self.is_live_view:
+            return self._rotate_frame(frame, self.rotation_angle)
+        if self._cached_rotated_image is not None and self._cached_rotation_angle == self.rotation_angle:
+            return self._cached_rotated_image
+        rotated = self._rotate_frame(frame, self.rotation_angle)
+        self._cached_rotated_image = rotated
+        self._cached_rotation_angle = self.rotation_angle
+        return rotated
+    
+    def _rotate_frame(self, frame, angle):
+        """
+        Rotate a frame by the given angle
+        
+        Args:
+            frame: Pygame surface
+            angle: Rotation angle (0, 90, 180, 270)
+            
+        Returns:
+            Rotated pygame surface
+        """
+        if angle == 90:
+            return transform.rotate(frame, -90)
+        elif angle == 180:
+            return transform.rotate(frame, 180)
+        elif angle == 270:
+            return transform.rotate(frame, 90)
+        else:
+            return frame
+    
     def _get_image_coordinates(self, mouse_pos, frame):
         """Convert screen mouse position to image coordinates"""
-        rotated_frame = frame
-        if self.rotation_angle == 90:
-            rotated_frame = transform.rotate(frame, -90)
-        elif self.rotation_angle == 180:
-            rotated_frame = transform.rotate(frame, 180)
-        elif self.rotation_angle == 270:
-            rotated_frame = transform.rotate(frame, 90)
+        rotated_frame = self._get_rotated_frame(frame)
         frame_width, frame_height = rotated_frame.get_size()
         view_width, view_height = self.rect.size
         scale_x = view_width / frame_width
@@ -162,6 +209,7 @@ class CameraView(BaseWindow):
         scale = base_scale * zoom_factor
         new_width = int(frame_width * scale)
         new_height = int(frame_height * scale)
+        
         if self.zoom_level <= 100:
             x_offset = (view_width - new_width) // 2
             y_offset = (view_height - new_height) // 2
@@ -172,8 +220,10 @@ class CameraView(BaseWindow):
             clamped_pan_y = max(-max_pan_y, min(max_pan_y, self.pan_offset_y))
             x_offset = (view_width - new_width) // 2 - clamped_pan_x
             y_offset = (view_height - new_height) // 2 - clamped_pan_y
+        
         relative_x = mouse_pos[0] - self.rect.x - x_offset
         relative_y = mouse_pos[1] - self.rect.y - y_offset
+        
         if 0 <= relative_x < new_width and 0 <= relative_y < new_height:
             img_x = int(relative_x / scale)
             img_y = int(relative_y / scale)
@@ -189,13 +239,7 @@ class CameraView(BaseWindow):
             surface: Pygame surface to draw on
             frame: Pygame surface containing the frame to display
         """
-        rotated_frame = frame
-        if self.rotation_angle == 90:
-            rotated_frame = transform.rotate(frame, -90)
-        elif self.rotation_angle == 180:
-            rotated_frame = transform.rotate(frame, 180)
-        elif self.rotation_angle == 270:
-            rotated_frame = transform.rotate(frame, 90)
+        rotated_frame = self._get_rotated_frame(frame)
         frame_width, frame_height = rotated_frame.get_size()
         view_width, view_height = self.rect.size
         scale_x = view_width / frame_width
@@ -230,7 +274,7 @@ class CameraView(BaseWindow):
         Args:
             surface: Pygame surface to draw on
         """
-        if self.viewing_mode == "live":
+        if self.is_live_view:
             text = self.font.render("No Camera Feed", True, (150, 150, 150))
         else:
             text = self.font.render("No Image Selected", True, (150, 150, 150))
@@ -250,27 +294,36 @@ class CameraView(BaseWindow):
     
     def set_selected_image(self, image):
         """
-        Set the selected image to display
+        Set the selected image to display and switch to image view mode
         
         Args:
             image: Pygame surface containing the selected image
         """
         self.selected_image = image
-        self.viewing_mode = "image"
+        self.is_live_view = False
         self.zoom_level = 100
         self.pan_offset_x = 0
         self.pan_offset_y = 0
+        self._cached_rotated_image = None
+        self._cached_rotation_angle = None
+        if self.on_mode_change_callback:
+            self.on_mode_change_callback(False)
         return
     
     def switch_to_live(self):
         """Switch to live camera view mode"""
-        self.viewing_mode = "live"
+        self.is_live_view = True
         self.selected_image = None
+        self._cached_rotated_image = None
+        self._cached_rotation_angle = None
+        if self.on_mode_change_callback:
+            self.on_mode_change_callback(True)
         return
     
     def rotate_view(self):
         """Rotate the view by 90 degrees clockwise"""
         self.rotation_angle = (self.rotation_angle + 90) % 360
+        self._cached_rotated_image = None
         return
     
     def set_zoom(self, zoom_level):
