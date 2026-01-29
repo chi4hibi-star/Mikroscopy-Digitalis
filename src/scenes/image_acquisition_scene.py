@@ -1,4 +1,4 @@
-from pygame import VIDEORESIZE, surfarray, image
+from pygame import VIDEORESIZE, surfarray, image, KEYDOWN, K_ESCAPE
 from pathlib import Path
 from shutil import rmtree, copy2
 from datetime import datetime
@@ -10,7 +10,8 @@ from windows.control_panel import ControlPanel
 from windows.histogram_view import HistogramView
 from camera import CameraThread
 from stage_control import StageController
-from typing import Tuple, List
+from typing import Tuple
+
 
 class ImageAcquisitionScene:
     def __init__(self, screen, settings, switch_scene_callback):
@@ -158,9 +159,17 @@ class ImageAcquisitionScene:
         Args:
             events: List of pygame events
         """
-        resize_events = [e for e in events if e.type == VIDEORESIZE]
+        resize_event = None
+        for event in events:
+            if event.type == VIDEORESIZE:
+                resize_events = event
+            if event.type == KEYDOWN:
+                if event.key == K_ESCAPE:
+                    if self.stage_control and self.stage_control.is_moving:
+                        self.stage_control.stop()
+                        self.control_panel.update_position_display()
         if resize_events:
-            self.update_layout((resize_events[-1].w,resize_events[-1].h))
+            self.update_layout((resize_events.w,resize_events.h))
         self.menu_bar.handle_events(events)
         self.camera_view.handle_events(events)
         self.control_panel.handle_events(events)
