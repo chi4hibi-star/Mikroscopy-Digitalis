@@ -6,7 +6,7 @@ from threading import Thread
 from queue import Queue, Empty
 from enum import Enum
 from dataclasses import dataclass
-import numpy as np
+import numpy as np 
 from traceback import print_exc
 from shutil import copy2
 from windows.file_viewer import FileViewer
