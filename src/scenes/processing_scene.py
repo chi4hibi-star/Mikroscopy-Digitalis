@@ -15,7 +15,7 @@ from windows.node_canvas import NodeCanvas, CanvasNode, NodeType
 from windows.processing_window import ProcessingViewport
 from windows.processing_panel import ProcessingControlPanel
 from pipeline_execution import PipelineExecutor
-from typing import Tuple, List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any
 
 class ProcessingMessageType(Enum):
     """Types of messages from processing thread"""
@@ -98,8 +98,6 @@ class ProcessingScene:
         self.processing_thread: Optional[Thread] = None
         self.processing_queue: Queue = Queue()
     
-    # ==================== Setup Methods ====================
-    
     def _setup_directories(self):
         """Setup working directories"""
         self.pipeline_dir = Path.cwd() / self.PIPELINES_DIR
@@ -110,6 +108,7 @@ class ProcessingScene:
             if not directory.exists():
                 directory.mkdir(parents=True)
                 print(f"Created directory: {directory}")
+        return
     
     def setup_menu_bar(self):
         """Setup the menu bar"""
@@ -122,6 +121,7 @@ class ProcessingScene:
             call_methods=[self._load_images, self._save_output],
             reference_resolution=self.settings.saved_settings["display"]["resolution"]
         )
+        return
     
     def setup_file_viewer(self):
         """Setup the image file viewer (left panel)"""
@@ -136,6 +136,7 @@ class ProcessingScene:
             hover_color=(60, 60, 80),
             text_color=(255, 255, 255)
         )
+        return
     
     def setup_pipeline_viewer(self):
         """Setup the pipeline file viewer (right panel)"""
@@ -150,8 +151,8 @@ class ProcessingScene:
             hover_color=(60, 60, 80),
             text_color=(255, 255, 255)
         )
-        # Only show JSON files in pipeline viewer
         self.pipeline_viewer.IMAGE_EXTENSIONS = {self.PIPELINE_EXTENSION}
+        return
     
     def setup_viewport(self):
         """Setup the processing viewport (center)"""
@@ -161,6 +162,7 @@ class ProcessingScene:
             reference_resolution=self.settings.saved_settings["display"]["resolution"],
             background_color=(30, 30, 30)
         )
+        return
     
     def setup_control_panel(self):
         """Setup the control panel (bottom center)"""
@@ -173,8 +175,7 @@ class ProcessingScene:
             on_output_mode_change=self._save_output_mode,
             on_set_view_mode=self.set_view_mode
         )
-    
-    # ==================== Scene Lifecycle ====================
+        return
     
     def update_layout(self, width: int, height: int):
         """
@@ -190,6 +191,7 @@ class ProcessingScene:
         self.pipeline_viewer.update_layout((width, height))
         self.viewport.update_layout((width, height))
         self.control_panel.update_layout((width, height))
+        return
     
     def handle_events(self, events: list):
         """
@@ -201,30 +203,23 @@ class ProcessingScene:
         for event in events:
             if event.type == VIDEORESIZE:
                 self.update_layout(event.w, event.h)
-        
-        # Pass events to all components
         self.menu_bar.handle_events(events)
         self.file_viewer.handle_events(events)
         self.pipeline_viewer.handle_events(events)
         self.viewport.handle_events(events)
         self.control_panel.handle_events(events)
+        return
     
     def update(self):
         """Update scene state (called every frame)"""
-        # Update all components
         self.file_viewer.update()
         self.pipeline_viewer.update()
         self.viewport.update()
         self.control_panel.update()
-        
-        # Handle image selection changes
         self._update_selected_images()
-        
-        # Handle pipeline selection changes
         self._update_selected_pipeline()
-        
-        # Process messages from processing thread
         self._process_queue_messages()
+        return
     
     def draw(self, screen):
         """
@@ -238,11 +233,13 @@ class ProcessingScene:
         self.pipeline_viewer.draw(screen)
         self.viewport.draw(screen)
         self.control_panel.draw(screen)
+        return
     
     def on_scene_enter(self):
         """Called when scene becomes active"""
         self.file_viewer.load_directory(str(self.working_dir))
         self.pipeline_viewer.load_directory(str(self.pipeline_dir))
+        return
     
     def cleanup(self):
         """Cleanup scene resources"""
@@ -251,8 +248,7 @@ class ProcessingScene:
             self.processing_thread.join(timeout=self.THREAD_JOIN_TIMEOUT)
             if self.processing_thread.is_alive():
                 print("Warning: Processing thread did not finish in time")
-    
-    # ==================== State Management ====================
+        return
     
     def _update_selected_images(self):
         """Update selected images from file viewer"""
@@ -261,21 +257,19 @@ class ProcessingScene:
             self.selected_images = current_images
             self.control_panel.set_image_count(len(current_images))
             self._load_input_images()
+        return
     
     def _update_selected_pipeline(self):
         """Update selected pipeline from pipeline viewer"""
         current_pipeline = self.pipeline_viewer.get_selected_files()
-        
-        # Pipeline deselected
         if len(current_pipeline) == 0 and self.selected_pipeline is not None:
             self.selected_pipeline = None
             self.viewport.set_pipeline_canvas(None)
-        
-        # Pipeline selected or changed
         elif len(current_pipeline) > 0:
             if self.selected_pipeline != current_pipeline[0]:
                 self.selected_pipeline = current_pipeline[0]
                 self._load_pipeline()
+        return
     
     def _process_queue_messages(self):
         """Process messages from the processing thread"""
@@ -283,16 +277,13 @@ class ProcessingScene:
             while True:
                 msg_dict = self.processing_queue.get_nowait()
                 msg = self._parse_queue_message(msg_dict)
-                
                 if msg.message_type == ProcessingMessageType.PROGRESS:
                     self.control_panel.set_processing(True, msg.current, msg.total)
-                
                 elif msg.message_type == ProcessingMessageType.COMPLETE:
                     self.control_panel.set_processing(False)
                     self.output_images = msg.outputs or []
                     self.output_data = msg.data_outputs or []
                     self._display_outputs()
-                
                 elif msg.message_type == ProcessingMessageType.ERROR:
                     self.control_panel.set_processing(False)
                     print(f"Processing error: {msg.error}")
@@ -323,6 +314,7 @@ class ProcessingScene:
             data_outputs=msg_dict.get("data_outputs"),
             error=msg_dict.get("error")
         )
+        return
     
     def set_view_mode(self, mode: str):
         """
@@ -332,8 +324,7 @@ class ProcessingScene:
             mode: View mode ('input', 'output', 'pipeline')
         """
         self.viewport.current_mode = mode
-    
-    # ==================== Image Loading ====================
+        return
     
     def _load_input_images(self):
         """Load selected input images for preview"""
@@ -344,8 +335,8 @@ class ProcessingScene:
                 images.append(img)
             except Exception as e:
                 print(f"Error loading {img_path}: {e}")
-        
         self.viewport.set_input_images(images)
+        return
     
     def _load_images(self):
         """Load images from file system (menu callback)"""
@@ -353,7 +344,6 @@ class ProcessingScene:
             from tkinter import Tk, filedialog
             root = Tk()
             root.withdraw()
-            
             filepaths = filedialog.askopenfilenames(
                 title="Select Images to Process",
                 filetypes=[
@@ -363,55 +353,41 @@ class ProcessingScene:
                 initialdir=str(self.working_dir) if self.working_dir.exists() else None
             )
             root.destroy()
-            
             if not filepaths:
                 return
-            
-            # Copy to working directory
             if not self.working_dir.exists():
                 self.working_dir.mkdir(parents=True)
-            
             count = 0
             for filepath in filepaths:
                 source_file = Path(filepath)
                 destination = self.working_dir / source_file.name
                 copy2(source_file, destination)
                 count += 1
-            
             if count > 0:
                 print(f"Loaded {count} images")
                 self.file_viewer.load_directory(str(self.working_dir))
         except Exception as e:
             print(f"Error loading images: {e}")
             print_exc()
-    
-    # ==================== Pipeline Loading ====================
+        return
     
     def _load_pipeline(self):
         """Load selected pipeline and display in viewport"""
         if not self.selected_pipeline:
             return
-        
         try:
-            # Load pipeline data
             with open(self.selected_pipeline, 'r') as f:
                 pipeline_data = load(f)
-            
-            # Load node definitions
             node_definitions = self._load_node_definitions()
-            
-            # Create canvas and deserialize pipeline
             canvas = self._create_pipeline_canvas(node_definitions)
             self._deserialize_pipeline_to_canvas(pipeline_data, canvas)
-            
-            # Display in viewport
             self.viewport.set_pipeline_canvas(canvas)
             self.set_view_mode("pipeline")
-            
             print(f"Loaded pipeline: {self.selected_pipeline.name}")
         except Exception as e:
             print(f"Error loading pipeline: {e}")
             print_exc()
+        return
     
     def _load_node_definitions(self) -> Dict[str, Any]:
         """
@@ -427,7 +403,6 @@ class ProcessingScene:
                     return load(f)
             except Exception as e:
                 print(f"Error loading node definitions: {e}")
-        
         return {"categories": []}
     
     def _create_pipeline_canvas(self, node_definitions: Dict[str, Any]) -> NodeCanvas:
@@ -459,14 +434,8 @@ class ProcessingScene:
             canvas: Canvas to populate
         """
         node_map = {}
-        
-        # Map existing input/output nodes
         self._map_io_nodes(pipeline_data, canvas, node_map)
-        
-        # Create process nodes
         self._create_process_nodes(pipeline_data, canvas, node_map)
-        
-        # Create connections
         self._create_connections(pipeline_data, canvas, node_map)
         return
     
