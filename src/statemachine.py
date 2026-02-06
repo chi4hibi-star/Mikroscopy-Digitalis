@@ -19,6 +19,7 @@ class Statemachine:
             "motors": self._on_motors_settings_changed,
             "processing": self._on_processing_settings_changed
         }
+        self.shared_camera = None
         return
     
     #reset all scenes
@@ -43,7 +44,6 @@ class Statemachine:
     def _on_processing_settings_changed(self):
         pass
 
-    #Create new Display and set mode
     def new_display(self):
         if self.settings.saved_settings["display"]["display_flag"] == "RESIZABLE":
             self.display_surface = display.set_mode(
@@ -72,6 +72,8 @@ class Statemachine:
                         self.settings,
                         self.switch_scene
                     )
+                    if new_scene.camera_thread:
+                        self.shared_camera = new_scene.camera_thread
                 case "algorithms":
                     new_scene = AlgorithmScene(
                         self.display_surface,
@@ -84,6 +86,7 @@ class Statemachine:
                         self.settings,
                         self.switch_scene
                     )
+                    new_scene.camera_thread = self.shared_camera
                 case "settings":
                     new_scene = SettingsScene(
                         self.display_surface,

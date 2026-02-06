@@ -2,47 +2,38 @@ from pygame import VIDEORESIZE, surfarray, image
 from pathlib import Path
 from json import load, dump
 from datetime import datetime
-from threading import Thread
-from queue import Queue, Empty
+from time import time, sleep
 from enum import Enum
-from dataclasses import dataclass
-import numpy as np 
+import numpy as np
 from traceback import print_exc
-from shutil import copy2
+from camera import CameraThread
 from windows.file_viewer import FileViewer
 from windows.menu_bar import MenuBar
 from windows.node_canvas import NodeCanvas, CanvasNode, NodeType
 from windows.processing_window import ProcessingViewport
 from windows.processing_panel import ProcessingControlPanel
+from windows.parameter_panel import ParameterPanel
 from pipeline_execution import PipelineExecutor
 from typing import List, Optional, Dict, Any
 
-class ProcessingMessageType(Enum):
-    """Types of messages from processing thread"""
-    PROGRESS = "progress"
-    COMPLETE = "complete"
-    ERROR = "error"
-
-@dataclass
-class ProcessingMessage:
-    """Message from processing thread to main thread"""
-    message_type: ProcessingMessageType
-    current: int = 0
-    total: int = 0
-    outputs: Optional[List[Any]] = None
-    data_outputs: Optional[List[Dict[str, Any]]] = None
-    error: Optional[str] = None
+class ViewMode(Enum):
+    """View modes for the viewport"""
+    INPUT = "input"
+    OUTPUT = "output"
+    LIVE = "live"
+    PIPELINE = "pipeline"
 
 class ProcessingScene:
     """
-    Scene for batch processing images through pipelines
+    Scene for processing images through pipelines
     
     Features:
-    - Select multiple images from file viewer
+    - Select single image for processing
     - Select pipeline to apply
+    - Process image and view output
+    - Live view mode: process camera feed in real-time
     - Preview pipeline structure
-    - Process images in background thread
-    - View input/output/pipeline
+    - Adjust parameters during live view
     - Export results with documentation
     """
     
@@ -51,16 +42,7 @@ class ProcessingScene:
     WORKING_DIR = "working_directory"
     OUTPUT_DIR = "processed_outputs"
     NODE_DEFINITIONS_FILE = "nodes_definition.json"
-    
-    # Queue polling
-    QUEUE_POLL_TIMEOUT = 0.01
-    
-    # Thread timeout
-    THREAD_JOIN_TIMEOUT = 1.0
-    
-    # File extensions
-    PIPELINE_EXTENSION = '.json'
-    OUTPUT_IMAGE_FORMAT = 'output_{:04d}.png'
+    MIN_FRAME_TIME = 0.001
     
     def __init__(self, screen, settings, switch_scene_callback):
         """
@@ -75,6 +57,9 @@ class ProcessingScene:
         self.switch_scene_callback = switch_scene_callback
         self.current_window_size = screen.get_size()
         
+        # Camera reference
+        self.camera_thread = None
+        
         # Setup directories
         self._setup_directories()
         
@@ -84,19 +69,25 @@ class ProcessingScene:
         self.setup_pipeline_viewer()
         self.setup_viewport()
         self.setup_control_panel()
+        self.setup_parameter_panel()
         
         # Initial layout
         self.update_layout(*self.current_window_size)
         
         # State
-        self.selected_images: List[Path] = []
+        self.selected_image: Optional[Path] = None
         self.selected_pipeline: Optional[Path] = None
-        self.output_images: List[Any] = []
-        self.output_data: List[Dict[str, Any]] = []
+        self.output_image: Optional[Any] = None
+        self.output_data: Optional[Dict[str, Any]] = None
         
-        # Processing thread
-        self.processing_thread: Optional[Thread] = None
-        self.processing_queue: Queue = Queue()
+        self.pipeline_executor: Optional[PipelineExecutor] = None
+        
+        # Live view state
+        self.is_live_view_active = False
+        self.last_frame_time = 0.0
+        self.processing_fps = 0.0
+        self.frame_count = 0
+        self.fps_update_time = time()
     
     def _setup_directories(self):
         """Setup working directories"""
@@ -118,7 +109,7 @@ class ProcessingScene:
             rel_pos=(0.0, 0.0),
             rel_size=(1.0, 0.05),
             switch_scene_callback=self.switch_scene_callback,
-            call_methods=[self._load_images, self._save_output],
+            call_methods=[self._save_output],
             reference_resolution=self.settings.saved_settings["display"]["resolution"]
         )
         return
@@ -127,7 +118,7 @@ class ProcessingScene:
         """Setup the image file viewer (left panel)"""
         self.file_viewer = FileViewer(
             rel_pos=(0.001, 0.051),
-            rel_size=(0.248, 0.948),
+            rel_size=(0.248, 0.648),
             reference_resolution=self.settings.saved_settings["display"]["resolution"],
             background_color=(30, 30, 30),
             folder_color=(100, 150, 200),
@@ -136,13 +127,14 @@ class ProcessingScene:
             hover_color=(60, 60, 80),
             text_color=(255, 255, 255)
         )
+        self.file_viewer.allow_multi_select = False
         return
     
     def setup_pipeline_viewer(self):
         """Setup the pipeline file viewer (right panel)"""
         self.pipeline_viewer = FileViewer(
             rel_pos=(0.751, 0.051),
-            rel_size=(0.248, 0.948),
+            rel_size=(0.248, 0.648),
             reference_resolution=self.settings.saved_settings["display"]["resolution"],
             background_color=(30, 30, 30),
             folder_color=(100, 150, 200),
@@ -151,14 +143,15 @@ class ProcessingScene:
             hover_color=(60, 60, 80),
             text_color=(255, 255, 255)
         )
-        self.pipeline_viewer.IMAGE_EXTENSIONS = {self.PIPELINE_EXTENSION}
+        self.pipeline_viewer.IMAGE_EXTENSIONS = {'.json'}
+        self.pipeline_viewer.allow_multi_select = False
         return
     
     def setup_viewport(self):
         """Setup the processing viewport (center)"""
         self.viewport = ProcessingViewport(
             rel_pos=(0.251, 0.051),
-            rel_size=(0.498, 0.608),
+            rel_size=(0.498, 0.648),
             reference_resolution=self.settings.saved_settings["display"]["resolution"],
             background_color=(30, 30, 30)
         )
@@ -167,13 +160,25 @@ class ProcessingScene:
     def setup_control_panel(self):
         """Setup the control panel (bottom center)"""
         self.control_panel = ProcessingControlPanel(
-            rel_pos=(0.251, 0.661),
-            rel_size=(0.498, 0.208),
+            rel_pos=(0.251, 0.701),
+            rel_size=(0.498, 0.148),
             reference_resolution=self.settings.saved_settings["display"]["resolution"],
-            settings=self.settings,
-            on_process=self.process_images,
-            on_output_mode_change=self._save_output_mode,
-            on_set_view_mode=self.set_view_mode
+            on_process_image=self.process_image,
+            on_toggle_live_view=self.toggle_live_view,
+            on_view_mode_change=self.set_view_mode
+        )
+        return
+    
+    def setup_parameter_panel(self):
+        """Setup the parameter panel (bottom left)"""
+        self.parameter_panel = ParameterPanel(
+            rel_pos=(0.001, 0.701),
+            rel_size=(0.248, 0.298),
+            reference_resolution=self.settings.saved_settings["display"]["resolution"],
+            background_color=(30, 30, 30),
+            header_color=(60, 60, 60),
+            text_color=(255, 255, 255),
+            param_bg_color=(50, 50, 50)
         )
         return
     
@@ -191,6 +196,7 @@ class ProcessingScene:
         self.pipeline_viewer.update_layout((width, height))
         self.viewport.update_layout((width, height))
         self.control_panel.update_layout((width, height))
+        self.parameter_panel.update_layout((width, height))
         return
     
     def handle_events(self, events: list):
@@ -208,6 +214,7 @@ class ProcessingScene:
         self.pipeline_viewer.handle_events(events)
         self.viewport.handle_events(events)
         self.control_panel.handle_events(events)
+        self.parameter_panel.handle_events(events)
         return
     
     def update(self):
@@ -216,9 +223,11 @@ class ProcessingScene:
         self.pipeline_viewer.update()
         self.viewport.update()
         self.control_panel.update()
-        self._update_selected_images()
+        self.parameter_panel.update()
+        self._update_selected_image()
         self._update_selected_pipeline()
-        self._process_queue_messages()
+        if self.is_live_view_active:
+            self._update_live_view()
         return
     
     def draw(self, screen):
@@ -233,87 +242,78 @@ class ProcessingScene:
         self.pipeline_viewer.draw(screen)
         self.viewport.draw(screen)
         self.control_panel.draw(screen)
+        self.parameter_panel.draw(screen)
         return
     
     def on_scene_enter(self):
         """Called when scene becomes active"""
         self.file_viewer.load_directory(str(self.working_dir))
         self.pipeline_viewer.load_directory(str(self.pipeline_dir))
+        self._get_camera_reference()
         return
     
     def cleanup(self):
         """Cleanup scene resources"""
-        if self.processing_thread and self.processing_thread.is_alive():
-            print("Waiting for processing thread to finish...")
-            self.processing_thread.join(timeout=self.THREAD_JOIN_TIMEOUT)
-            if self.processing_thread.is_alive():
-                print("Warning: Processing thread did not finish in time")
+        if self.is_live_view_active:
+            self.stop_live_view()
         return
     
-    def _update_selected_images(self):
-        """Update selected images from file viewer"""
-        current_images = self.file_viewer.get_selected_files()
-        if current_images != self.selected_images:
-            self.selected_images = current_images
-            self.control_panel.set_image_count(len(current_images))
-            self._load_input_images()
+    def _get_camera_reference(self):
+        """Get camera reference from image acquisition scene"""
+        try:
+            if hasattr(self, 'switch_scene_callback'):
+                pass
+        except Exception as e:
+            print(f"Note: Camera will be accessed when starting live view: {e}")
+        return
+    
+    def _access_camera(self):
+        """
+        Access the camera from ImageAcquisitionScene
+        
+        Returns:
+            Camera thread instance or None
+        """
+        if self.camera_thread is None:
+            try:
+                self.camera_thread = CameraThread()
+                if not self.camera_thread.start():
+                    print(f"Failed to start camera: {self.camera_thread.last_error}")
+                    self.camera_thread = None
+                    return None
+            except Exception as e:
+                print(f"Error creating camera: {e}")
+                return None
+        return self.camera_thread
+    
+    def _update_selected_image(self):
+        """Update selected image from file viewer"""
+        current_selection = self.file_viewer.get_selected_files()
+        new_image = current_selection[0] if current_selection else None
+        if new_image != self.selected_image:
+            self.selected_image = new_image
+            if self.selected_image:
+                self._load_input_image()
+                self.control_panel.set_image_selected(True)
+            else:
+                self.control_panel.set_image_selected(False)
         return
     
     def _update_selected_pipeline(self):
         """Update selected pipeline from pipeline viewer"""
-        current_pipeline = self.pipeline_viewer.get_selected_files()
-        if len(current_pipeline) == 0 and self.selected_pipeline is not None:
-            self.selected_pipeline = None
-            self.viewport.set_pipeline_canvas(None)
-        elif len(current_pipeline) > 0:
-            if self.selected_pipeline != current_pipeline[0]:
-                self.selected_pipeline = current_pipeline[0]
-                self._load_pipeline()
-        return
-    
-    def _process_queue_messages(self):
-        """Process messages from the processing thread"""
-        try:
-            while True:
-                msg_dict = self.processing_queue.get_nowait()
-                msg = self._parse_queue_message(msg_dict)
-                if msg.message_type == ProcessingMessageType.PROGRESS:
-                    self.control_panel.set_processing(True, msg.current, msg.total)
-                elif msg.message_type == ProcessingMessageType.COMPLETE:
-                    self.control_panel.set_processing(False)
-                    self.output_images = msg.outputs or []
-                    self.output_data = msg.data_outputs or []
-                    self._display_outputs()
-                elif msg.message_type == ProcessingMessageType.ERROR:
-                    self.control_panel.set_processing(False)
-                    print(f"Processing error: {msg.error}")
-        except Empty:
-            pass
-    
-    def _parse_queue_message(self, msg_dict: Dict[str, Any]) -> ProcessingMessage:
-        """
-        Parse queue message dictionary into ProcessingMessage
-        
-        Args:
-            msg_dict: Dictionary from queue
+        current_selection = self.pipeline_viewer.get_selected_files()
+        new_pipeline = current_selection[0] if current_selection else None
+        if new_pipeline != self.selected_pipeline:
+            self.selected_pipeline = new_pipeline
             
-        Returns:
-            Parsed ProcessingMessage
-        """
-        msg_type_str = msg_dict.get("type", "unknown")
-        try:
-            msg_type = ProcessingMessageType(msg_type_str)
-        except ValueError:
-            msg_type = ProcessingMessageType.ERROR
-        
-        return ProcessingMessage(
-            message_type=msg_type,
-            current=msg_dict.get("current", 0),
-            total=msg_dict.get("total", 0),
-            outputs=msg_dict.get("outputs"),
-            data_outputs=msg_dict.get("data_outputs"),
-            error=msg_dict.get("error")
-        )
+            if self.selected_pipeline:
+                self._load_pipeline()
+                self.control_panel.set_pipeline_selected(True)
+            else:
+                self.viewport.set_pipeline_canvas(None)
+                self.pipeline_executor = None
+                self.control_panel.set_pipeline_selected(False)
+                self.parameter_panel.clear_selection()
         return
     
     def set_view_mode(self, mode: str):
@@ -321,68 +321,41 @@ class ProcessingScene:
         Switch viewport display mode
         
         Args:
-            mode: View mode ('input', 'output', 'pipeline')
+            mode: View mode ('input', 'output', 'live', 'pipeline')
         """
-        self.viewport.current_mode = mode
-        return
-    
-    def _load_input_images(self):
-        """Load selected input images for preview"""
-        images = []
-        for img_path in self.selected_images:
-            try:
-                img = image.load(str(img_path))
-                images.append(img)
-            except Exception as e:
-                print(f"Error loading {img_path}: {e}")
-        self.viewport.set_input_images(images)
-        return
-    
-    def _load_images(self):
-        """Load images from file system (menu callback)"""
         try:
-            from tkinter import Tk, filedialog
-            root = Tk()
-            root.withdraw()
-            filepaths = filedialog.askopenfilenames(
-                title="Select Images to Process",
-                filetypes=[
-                    ("Image files", "*.png *.jpg *.jpeg *.bmp *.gif *.tiff *.webp"),
-                    ("All files", "*.*")
-                ],
-                initialdir=str(self.working_dir) if self.working_dir.exists() else None
-            )
-            root.destroy()
-            if not filepaths:
-                return
-            if not self.working_dir.exists():
-                self.working_dir.mkdir(parents=True)
-            count = 0
-            for filepath in filepaths:
-                source_file = Path(filepath)
-                destination = self.working_dir / source_file.name
-                copy2(source_file, destination)
-                count += 1
-            if count > 0:
-                print(f"Loaded {count} images")
-                self.file_viewer.load_directory(str(self.working_dir))
+            view_mode = ViewMode(mode)
+            self.viewport.set_view_mode(view_mode.value)
+        except ValueError:
+            print(f"Invalid view mode: {mode}")
+        return
+    
+    def _load_input_image(self):
+        """Load selected input image for preview"""
+        if not self.selected_image:
+            return
+        try:
+            img = image.load(str(self.selected_image))
+            self.viewport.set_input_image(img)
+            self.set_view_mode(ViewMode.INPUT.value)
+            print(f"Loaded image: {self.selected_image.name}")
         except Exception as e:
-            print(f"Error loading images: {e}")
-            print_exc()
+            print(f"Error loading {self.selected_image}: {e}")
         return
     
     def _load_pipeline(self):
-        """Load selected pipeline and display in viewport"""
+        """Load selected pipeline and create executor"""
         if not self.selected_pipeline:
             return
         try:
             with open(self.selected_pipeline, 'r') as f:
                 pipeline_data = load(f)
+            self.pipeline_executor = PipelineExecutor(pipeline_data)
             node_definitions = self._load_node_definitions()
             canvas = self._create_pipeline_canvas(node_definitions)
             self._deserialize_pipeline_to_canvas(pipeline_data, canvas)
             self.viewport.set_pipeline_canvas(canvas)
-            self.set_view_mode("pipeline")
+            self._update_parameter_panel_for_first_node(canvas)
             print(f"Loaded pipeline: {self.selected_pipeline.name}")
         except Exception as e:
             print(f"Error loading pipeline: {e}")
@@ -420,6 +393,10 @@ class ProcessingScene:
             rel_size=(0.498, 0.648),
             reference_resolution=self.settings.saved_settings["display"]["resolution"],
             background_color=(30, 30, 30),
+            grid_color=(50, 50, 50),
+            text_color=(255, 255, 255),
+            selection_color=(255, 200, 0),
+            connection_color=(150, 150, 150),
             node_definitions=node_definitions
         )
         canvas.update_layout(self.current_window_size)
@@ -441,14 +418,7 @@ class ProcessingScene:
     
     def _map_io_nodes(self, pipeline_data: Dict[str, Any], 
                       canvas: NodeCanvas, node_map: Dict[str, CanvasNode]):
-        """
-        Map existing input/output nodes to pipeline node IDs
-        
-        Args:
-            pipeline_data: Serialized pipeline dictionary
-            canvas: Canvas containing default I/O nodes
-            node_map: Dictionary to populate with node mappings
-        """
+        """Map existing input/output nodes to pipeline node IDs"""
         for node in canvas.nodes:
             if node.node_type == NodeType.INPUT:
                 for node_data in pipeline_data.get("nodes", []):
@@ -470,14 +440,7 @@ class ProcessingScene:
     
     def _create_process_nodes(self, pipeline_data: Dict[str, Any], 
                               canvas: NodeCanvas, node_map: Dict[str, CanvasNode]):
-        """
-        Create process nodes from pipeline data
-        
-        Args:
-            pipeline_data: Serialized pipeline dictionary
-            canvas: Canvas to add nodes to
-            node_map: Dictionary to populate with node mappings
-        """
+        """Create process nodes from pipeline data"""
         for node_data in pipeline_data.get("nodes", []):
             if node_data.get("node_type") in ["input", "output"]:
                 continue
@@ -497,14 +460,7 @@ class ProcessingScene:
     
     def _create_connections(self, pipeline_data: Dict[str, Any], 
                            canvas: NodeCanvas, node_map: Dict[str, CanvasNode]):
-        """
-        Create connections between nodes
-        
-        Args:
-            pipeline_data: Serialized pipeline dictionary
-            canvas: Canvas to add connections to
-            node_map: Dictionary mapping node IDs to CanvasNode instances
-        """
+        """Create connections between nodes"""
         for conn_data in pipeline_data.get("connections", []):
             from_node = node_map.get(conn_data["from_node"])
             to_node = node_map.get(conn_data["to_node"])
@@ -512,200 +468,213 @@ class ProcessingScene:
             from_output = conn_data.get("from_output", "image")
             if from_node and to_node:
                 canvas.add_connection(from_node, to_node, to_param, from_output)
-            else:
-                if not from_node:
-                    print(f"Warning: Could not find from_node: {conn_data['from_node']}")
-                if not to_node:
-                    print(f"Warning: Could not find to_node: {conn_data['to_node']}")
         return
     
-    def process_images(self):
-        """Process selected images through the selected pipeline"""
-        if not self.selected_images:
-            print("No images selected")
+    def _update_parameter_panel_for_first_node(self, canvas: NodeCanvas):
+        """
+        Update parameter panel with the first process node's parameters
+        
+        Args:
+            canvas: Canvas containing nodes
+        """
+        for node in canvas.nodes:
+            if node.node_type == NodeType.PROCESS:
+                params = self._get_parameter_definitions(node.name)
+                for param in params:
+                    param_name = param['name']
+                    if param_name in node.parameters:
+                        param['value'] = node.parameters[param_name]
+                
+                self.parameter_panel.set_selected_node(node, node.name, params)
+                break
+        return
+    
+    def _get_parameter_definitions(self, node_name: str) -> List[Dict[str, Any]]:
+        """
+        Get parameter definitions for a node type from JSON
+        
+        Args:
+            node_name: Name of the node type
+            
+        Returns:
+            List of parameter definition dictionaries
+        """
+        node_defs = self._load_node_definitions()
+        for category in node_defs.get('categories', []):
+            for node in category.get('nodes', []):
+                if node['name'] == node_name:
+                    return node.get('parameters', [])
+        return []
+    
+    def _update_live_view(self):
+        """Update live view processing (called every frame)"""
+        if not self.camera_thread or not self.camera_thread.is_running:
+            print("Camera stopped, ending live view")
+            self.stop_live_view()
             return
-        if not self.selected_pipeline:
-            print("No pipeline selected")
+        frame_surface = self.camera_thread.get_frame()
+        if frame_surface is None:
             return
         try:
-            with open(self.selected_pipeline, 'r') as f:
-                pipeline_data = load(f)
-        except Exception as e:
-            print(f"Error loading pipeline: {e}")
-            return
-        self.control_panel.set_processing(True, 0, len(self.selected_images))
-        self.processing_thread = Thread(
-            target=self._process_images_thread,
-            args=(self.selected_images, pipeline_data),
-            daemon=True
-        )
-        self.processing_thread.start()
-        print(f"Started processing {len(self.selected_images)} images...")
-        return
-    
-    def _process_images_thread(self, image_paths: List[Path], pipeline_data: Dict[str, Any]):
-        """
-        Process images in a separate thread (background processing)
-        
-        Args:
-            image_paths: List of image file paths to process
-            pipeline_data: Pipeline configuration dictionary
-        """
-        executor = PipelineExecutor(pipeline_data)
-        outputs = []
-        data_outputs = []
-        for i, img_path in enumerate(image_paths):
-            try:
-                img_surface = image.load(str(img_path))
-                img_array = surfarray.array3d(img_surface)
-                img_array = np.transpose(img_array, (1, 0, 2))
-                result = executor.execute(img_array)
-                if isinstance(result, dict):
-                    output_array = result.get("image")
-                    data_output = result.get("data")
-                else:
-                    output_array = result
-                    data_output = None
+            start_time = time()
+            result = self.pipeline_executor.execute(frame_surface)
+            if isinstance(result, dict):
+                output_array = result.get("image")
                 if output_array is not None:
-                    output_array = np.transpose(output_array, (1, 0, 2))
+                    if len(output_array.shape) == 3:
+                        output_array = np.transpose(output_array, (1, 0, 2))
+                        output_surface = surfarray.make_surface(output_array)
+                    else:
+                        rgb_array = np.stack([output_array] * 3, axis=-1)
+                        rgb_array = np.transpose(rgb_array, (1, 0, 2))
+                        output_surface = surfarray.make_surface(rgb_array)
+                    self.viewport.set_live_frame(output_surface)
+            elif isinstance(result, np.ndarray):
+                if len(result.shape) == 3:
+                    output_array = np.transpose(result, (1, 0, 2))
                     output_surface = surfarray.make_surface(output_array)
-                    outputs.append(output_surface)
                 else:
-                    outputs.append(None)
-                data_outputs.append({
-                    "image_name": img_path.name,
-                    "image_index": i,
-                    "data": data_output
-                })
-                self.processing_queue.put({
-                    "type": ProcessingMessageType.PROGRESS.value,
-                    "current": i + 1,
-                    "total": len(image_paths)
-                })
-            except Exception as e:
-                print(f"Error processing {img_path}: {e}")
-                print_exc()
-                outputs.append(None)
-                data_outputs.append({
-                    "image_name": img_path.name,
-                    "image_index": i,
-                    "data": None
-                })
-        self.processing_queue.put({
-            "type": ProcessingMessageType.COMPLETE.value,
-            "outputs": outputs,
-            "data_outputs": data_outputs
-        })
+                    rgb_array = np.stack([result] * 3, axis=-1)
+                    rgb_array = np.transpose(rgb_array, (1, 0, 2))
+                    output_surface = surfarray.make_surface(rgb_array)
+                self.viewport.set_live_frame(output_surface)
+            else:
+                self.viewport.set_live_frame(result)
+            process_time = time() - start_time
+            self.frame_count += 1
+            current_time = time()
+            if current_time - self.fps_update_time >= 1.0:
+                self.processing_fps = self.frame_count / (current_time - self.fps_update_time)
+                self.control_panel.set_processing_fps(self.processing_fps, process_time)
+                self.frame_count = 0
+                self.fps_update_time = current_time
+            sleep_time = max(0, self.MIN_FRAME_TIME - process_time)
+            if sleep_time > 0:
+                sleep(sleep_time)
+            self.last_frame_time = current_time
+        except Exception as e:
+            print(f"Error in live view processing: {e}")
+            print_exc()
         return
     
-    def _display_outputs(self):
-        """Display processed outputs in viewport"""
-        self.viewport.set_output_images(self.output_images)
-        self.set_view_mode("output")
-        print(f"Processing complete: {len(self.output_images)} images")
+    def toggle_live_view(self):
+        """Toggle live view processing on/off"""
+        if self.is_live_view_active:
+            self.stop_live_view()
+        else:
+            self.start_live_view()
         return
     
-    def _save_output_mode(self, mode: str):
-        """
-        Save output mode preference to settings
-        
-        Args:
-            mode: Output mode string
-        """
-        self.settings.saved_settings["processing"]["output_mode"] = mode
-        with open("settings.json", "w") as f:
-            dump(self.settings.saved_settings, f, indent=4)
+    def start_live_view(self):
+        """Start live view processing"""
+        if not self.pipeline_executor:
+            print("No pipeline selected")
+            return
+        camera = self._access_camera()
+        if not camera or not camera.is_running:
+            print("Camera not available")
+            return
+        self.is_live_view_active = True
+        self.frame_count = 0
+        self.fps_update_time = time()
+        self.set_view_mode(ViewMode.LIVE.value)
+        self.control_panel.set_live_view_active(True)
+        print("Live view started")
+        return
+    
+    def stop_live_view(self):
+        """Stop live view processing"""
+        self.is_live_view_active = False
+        self.control_panel.set_live_view_active(False)
+        print(f"Live view stopped (avg FPS: {self.processing_fps:.1f})")
+        return
+    
+    def _update_live_view(self):
+        """Update live view processing (called every frame)"""
+        if not self.camera_thread or not self.camera_thread.is_running:
+            print("Camera stopped, ending live view")
+            self.stop_live_view()
+            return
+        frame_surface = self.camera_thread.get_frame()
+        if frame_surface is None:
+            return
+        try:
+            start_time = time()
+            result = self.pipeline_executor.execute(frame_surface)
+            if isinstance(result, dict):
+                output_array = result.get("image")
+                if output_array is not None:
+                    if len(output_array.shape) == 3:
+                        output_array = np.transpose(output_array, (1, 0, 2))
+                        output_surface = surfarray.make_surface(output_array)
+                    else:
+                        rgb_array = np.stack([output_array] * 3, axis=-1)
+                        rgb_array = np.transpose(rgb_array, (1, 0, 2))
+                        output_surface = surfarray.make_surface(rgb_array)
+                    self.viewport.set_live_frame(output_surface)
+            elif isinstance(result, np.ndarray):
+                if len(result.shape) == 3:
+                    output_array = np.transpose(result, (1, 0, 2))
+                    output_surface = surfarray.make_surface(output_array)
+                else:
+                    rgb_array = np.stack([result] * 3, axis=-1)
+                    rgb_array = np.transpose(rgb_array, (1, 0, 2))
+                    output_surface = surfarray.make_surface(rgb_array)
+                self.viewport.set_live_frame(output_surface)
+            else:
+                self.viewport.set_live_frame(result)
+            process_time = time() - start_time
+            self.frame_count += 1
+            current_time = time()
+            if current_time - self.fps_update_time >= 1.0:
+                self.processing_fps = self.frame_count / (current_time - self.fps_update_time)
+                self.control_panel.set_processing_fps(self.processing_fps, process_time)
+                self.frame_count = 0
+                self.fps_update_time = current_time
+            sleep_time = max(0, self.MIN_FRAME_TIME - process_time)
+            if sleep_time > 0:
+                sleep(sleep_time)
+            self.last_frame_time = current_time
+        except Exception as e:
+            print(f"Error in live view processing: {e}")
+            print_exc()
         return
     
     def _save_output(self):
-        """Save processed outputs (menu callback)"""
-        if not self.output_images:
-            print("No outputs to save")
+        """Save processed output (menu callback)"""
+        if not self.output_image:
+            print("No output to save")
             return
         try:
             from tkinter import Tk, filedialog
             root = Tk()
             root.withdraw()
-            save_dir = filedialog.askdirectory(
-                title="Select Output Directory",
+            filepath = filedialog.asksaveasfilename(
+                title="Save Output Image",
+                defaultextension=".png",
+                filetypes=[
+                    ("PNG files", "*.png"),
+                    ("JPEG files", "*.jpg"),
+                    ("All files", "*.*")
+                ],
                 initialdir=str(self.output_dir) if self.output_dir.exists() else None
             )
             root.destroy()
-            if not save_dir:
+            if not filepath:
                 return
-            self._save_documentation(Path(save_dir))
+            image.save(self.output_image, filepath)
+            print(f"Output saved to: {filepath}")
+            if self.output_data:
+                metadata_path = Path(filepath).with_suffix('.json')
+                with open(metadata_path, 'w') as f:
+                    dump({
+                        "processing_date": datetime.now().isoformat(),
+                        "input_image": str(self.selected_image.name) if self.selected_image else "None",
+                        "pipeline": str(self.selected_pipeline.name) if self.selected_pipeline else "None",
+                        "data": self.output_data
+                    }, f, indent=2)
+                print(f"Metadata saved to: {metadata_path}")
         except Exception as e:
             print(f"Error saving output: {e}")
             print_exc()
         return
-    
-    def _save_documentation(self, save_path: Path):
-        """
-        Save full documentation including inputs, outputs, and metadata
-        
-        Args:
-            save_path: Base directory for documentation
-        """
-        try:
-            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            doc_dir = save_path / f"processing_doc_{timestamp}"
-            doc_dir.mkdir(exist_ok=True)
-            input_dir = doc_dir / "inputs"
-            input_dir.mkdir(exist_ok=True)
-            for img_path in self.selected_images:
-                copy2(img_path, input_dir / img_path.name)
-            output_dir = doc_dir / "outputs"
-            output_dir.mkdir(exist_ok=True)
-            for i, img in enumerate(self.output_images):
-                filename = self.OUTPUT_IMAGE_FORMAT.format(i)
-                image.save(img, str(output_dir / filename))
-            if self.selected_pipeline:
-                copy2(self.selected_pipeline, doc_dir / "pipeline.json")
-            metadata = {
-                "processing_date": datetime.now().isoformat(),
-                "num_inputs": len(self.selected_images),
-                "num_outputs": len(self.output_images),
-                "pipeline": self.selected_pipeline.name if self.selected_pipeline else "None",
-                "output_mode": self.settings.saved_settings.get("processing", {}).get("output_mode"),
-                "camera": self.settings.saved_settings.get("camera"),
-                "settings": self.settings.saved_settings
-            }
-            with open(doc_dir / "metadata.json", 'w') as f:
-                dump(metadata, f, indent=2)
-            readme = self._generate_readme(timestamp)
-            with open(doc_dir / "README.md", 'w') as f:
-                f.write(readme)
-            print(f"Full documentation saved to: {doc_dir}")
-        except Exception as e:
-            print(f"Error saving documentation: {e}")
-            print_exc()
-        return
-    
-    def _generate_readme(self, timestamp: str) -> str:
-        """
-        Generate README content for documentation
-        
-        Args:
-            timestamp: Processing timestamp
-            
-        Returns:
-            README markdown content
-        """
-        return f"""# Processing Documentation
-Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-
-## Processing Details
-- Input Images: {len(self.selected_images)}
-- Output Images: {len(self.output_images)}
-- Pipeline: {self.selected_pipeline.name if self.selected_pipeline else 'None'}
-- Camera: {self.settings.saved_settings.get('camera', {}).get('device', 'Unknown')}
-
-## Directory Structure
-- inputs/ : Original input images
-- outputs/ : Processed output images
-- pipeline.json : Processing pipeline used
-- metadata.json : Complete processing metadata
-
-## Output Mode
-{self.settings.saved_settings.get('processing', {}).get('output_mode', 'Unknown')}
-"""
