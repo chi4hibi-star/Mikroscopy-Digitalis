@@ -26,7 +26,7 @@ class AlgorithmScene:
     NODE_DEFINITIONS_FILE = "nodes_definition.json"
     PIPELINES_DIR = "pipelines"
     
-    def __init__(self, screen, settings, switch_scene_callback):
+    def __init__(self, screen, settings, switch_scene_callback, directories):
         """
         Initialize the Algorithm Scene
         
@@ -40,7 +40,7 @@ class AlgorithmScene:
         self.window_width, self.window_height = screen.get_size()
         self.node_definitions = self._load_node_definitions()
         self.algorithm_definitions = self._load_algorithm_definitions()
-        self.setup_working_directory()
+        self.working_dir, self.pipeline_dir, _ = directories
         self.setup_menu_bar()
         self.setup_node_viewer()
         self.setup_algorithm_viewer()
@@ -50,13 +50,8 @@ class AlgorithmScene:
         self._last_selected_node = None
         return
     
-    def setup_working_directory(self):
-        """Setup working directory for saved pipelines"""
-        self.working_dir = Path.cwd() / self.PIPELINES_DIR
-        if not self.working_dir.exists():
-            self.working_dir.mkdir(parents=True)
-            print(f"Pipeline directory created: {self.working_dir}")
-        return
+    def update_dir(self,dir):
+        self.working_dir, self.pipeline_dir, _ = dir
     
     def setup_menu_bar(self):
         """Setup the menu bar with save/load callbacks"""

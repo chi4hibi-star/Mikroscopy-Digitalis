@@ -1,5 +1,7 @@
 from pygame import display, FULLSCREEN, RESIZABLE
 from settings import Settings
+from os import makedirs, path
+from datetime import datetime
 from scenes.settings_scene import SettingsScene
 from scenes.image_acquisition_scene import ImageAcquisitionScene
 from scenes.algorithm_scene import AlgorithmScene
@@ -9,8 +11,8 @@ class Statemachine:
     def __init__(self,stop_game,change_fps):
         self._stop_game = stop_game
         self._change_game_fps = change_fps
-        self.settings = Settings()                                                       #Save the saved sattings as a member Variable with a Scene reset methode
-        self.scenes = {}                                                                                            #Create a dict for holding the Scenes
+        self.settings = Settings()
+        self.scenes = {}
         self.current_scene = None
         self.previous_scene_name = "image_acquisition"
         self.settings_callbacks = {
@@ -19,8 +21,43 @@ class Statemachine:
             "motors": self._on_motors_settings_changed,
             "processing": self._on_processing_settings_changed
         }
+        self.directories = (None, None, None)  # ADD THIS LINE
+        self.directories = self.create_directories()
         self.shared_camera = None
         return
+
+    def create_directories(self):
+        """Create or reuse directories"""
+        # Initialize with existing directories or None
+        working_directory = self.directories[0]
+        pipeline_directory = self.directories[1]
+        output_directory = self.directories[2]
+        
+        if not (working_directory and path.exists(working_directory)):
+            base_dir = "temp_working_dirs"
+            makedirs(base_dir, exist_ok=True)
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            working_directory = path.join(base_dir, f"working_dir_{timestamp}")
+            makedirs(working_directory, exist_ok=True)
+            print(f"Created new working directory: {working_directory}")
+            
+        if not (pipeline_directory and path.exists(pipeline_directory)):
+            base_dir = "pipeline_dirs"
+            makedirs(base_dir, exist_ok=True)
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            pipeline_directory = path.join(base_dir, f"pipeline_dir_{timestamp}")
+            makedirs(pipeline_directory, exist_ok=True)
+            print(f"Created new pipeline directory: {pipeline_directory}")
+            
+        if not (output_directory and path.exists(output_directory)):
+            base_dir = "output_dirs"
+            makedirs(base_dir, exist_ok=True)
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            output_directory = path.join(base_dir, f"output_dir_{timestamp}")
+            makedirs(output_directory, exist_ok=True)
+            print(f"Created new output directory: {output_directory}")
+            
+        return working_directory, pipeline_directory, output_directory
     
     #reset all scenes
     def _on_display_settings_changed(self):
@@ -70,7 +107,8 @@ class Statemachine:
                     new_scene = ImageAcquisitionScene(
                         self.display_surface,
                         self.settings,
-                        self.switch_scene
+                        self.switch_scene,
+                        self.directories
                     )
                     if new_scene.camera_thread:
                         self.shared_camera = new_scene.camera_thread
@@ -78,13 +116,15 @@ class Statemachine:
                     new_scene = AlgorithmScene(
                         self.display_surface,
                         self.settings,
-                        self.switch_scene
+                        self.switch_scene,
+                        self.directories
                     )
                 case "processing":
                     new_scene = ProcessingScene(
                         self.display_surface,
                         self.settings,
-                        self.switch_scene
+                        self.switch_scene,
+                        self.directories
                     )
                     new_scene.camera_thread = self.shared_camera
                 case "settings":

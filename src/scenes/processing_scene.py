@@ -44,7 +44,7 @@ class ProcessingScene:
     NODE_DEFINITIONS_FILE = "nodes_definition.json"
     MIN_FRAME_TIME = 0.001
     
-    def __init__(self, screen, settings, switch_scene_callback):
+    def __init__(self, screen, settings, switch_scene_callback,directories):
         """
         Initialize the Processing Scene
         
@@ -60,8 +60,7 @@ class ProcessingScene:
         # Camera reference
         self.camera_thread = None
         
-        # Setup directories
-        self._setup_directories()
+        self.working_dir, self.pipeline_dir, self.output_dir = directories
         
         # Setup UI components
         self.setup_menu_bar()
@@ -89,17 +88,8 @@ class ProcessingScene:
         self.frame_count = 0
         self.fps_update_time = time()
     
-    def _setup_directories(self):
-        """Setup working directories"""
-        self.pipeline_dir = Path.cwd() / self.PIPELINES_DIR
-        self.working_dir = Path.cwd() / self.WORKING_DIR
-        self.output_dir = Path.cwd() / self.OUTPUT_DIR
-        
-        for directory in [self.pipeline_dir, self.working_dir, self.output_dir]:
-            if not directory.exists():
-                directory.mkdir(parents=True)
-                print(f"Created directory: {directory}")
-        return
+    def update_dir(self,dir):
+        self.working_dir, self.pipeline_dir, self.output_dir = dir
     
     def setup_menu_bar(self):
         """Setup the menu bar"""

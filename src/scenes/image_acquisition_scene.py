@@ -14,7 +14,7 @@ from typing import Tuple
 
 
 class ImageAcquisitionScene:
-    def __init__(self, screen, settings, switch_scene_callback):
+    def __init__(self, screen, settings, switch_scene_callback, directories):
         """
         Initialize the Image Acquisition Scene
         
@@ -28,7 +28,7 @@ class ImageAcquisitionScene:
         self.live_frame = None
         self.camera_thread = None
         self._prev_file_selection = []
-        self.setup_working_directory()
+        self.working_dir, _,_ = directories
         self.setup_stage_control()
         self.setup_menu_bar()
         self.setup_camera_view()
@@ -39,13 +39,8 @@ class ImageAcquisitionScene:
         self.update_layout(screen.get_size())
         return
     
-    def setup_working_directory(self):
-        """Setup working directory for temporary images"""
-        self.working_dir = Path.cwd() / "working_directory"
-        if not self.working_dir.exists():
-            self.working_dir.mkdir(parents=True)
-            print(f"Working directory created: {self.working_dir}")
-        return
+    def update_dir(self,dir):
+        self.working_dir, _, _ = dir
     
     def setup_stage_control(self):
         """Setup stage controller for motor control"""
