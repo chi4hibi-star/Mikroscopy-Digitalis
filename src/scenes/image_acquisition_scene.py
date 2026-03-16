@@ -154,7 +154,7 @@ class ImageAcquisitionScene:
         Args:
             events: List of pygame events
         """
-        resize_event = None
+        resize_events = None
         for event in events:
             if event.type == VIDEORESIZE:
                 resize_events = event

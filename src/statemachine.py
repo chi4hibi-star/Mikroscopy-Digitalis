@@ -1,6 +1,7 @@
 from pygame import display, FULLSCREEN, RESIZABLE
 from settings import Settings
 from os import makedirs, path
+from pathlib import Path
 from datetime import datetime
 from scenes.settings_scene import SettingsScene
 from scenes.image_acquisition_scene import ImageAcquisitionScene
@@ -37,24 +38,24 @@ class Statemachine:
             base_dir = "temp_working_dirs"
             makedirs(base_dir, exist_ok=True)
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            working_directory = path.join(base_dir, f"working_dir_{timestamp}")
-            makedirs(working_directory, exist_ok=True)
+            working_directory = Path(base_dir) / f"working_dir_{timestamp}"
+            working_directory.mkdir(exist_ok=True)
             print(f"Created new working directory: {working_directory}")
             
         if not (pipeline_directory and path.exists(pipeline_directory)):
             base_dir = "pipeline_dirs"
             makedirs(base_dir, exist_ok=True)
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            pipeline_directory = path.join(base_dir, f"pipeline_dir_{timestamp}")
-            makedirs(pipeline_directory, exist_ok=True)
+            pipeline_directory = Path(base_dir) / f"pipeline_dir_{timestamp}"
+            pipeline_directory.mkdir(exist_ok=True)
             print(f"Created new pipeline directory: {pipeline_directory}")
             
         if not (output_directory and path.exists(output_directory)):
             base_dir = "output_dirs"
             makedirs(base_dir, exist_ok=True)
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            output_directory = path.join(base_dir, f"output_dir_{timestamp}")
-            makedirs(output_directory, exist_ok=True)
+            output_directory = Path(base_dir) / f"output_dir_{timestamp}"
+            output_directory.mkdir(exist_ok=True)
             print(f"Created new output directory: {output_directory}")
             
         return working_directory, pipeline_directory, output_directory
