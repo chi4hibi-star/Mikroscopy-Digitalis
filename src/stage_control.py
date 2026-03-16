@@ -139,32 +139,29 @@ class StageController:
     
     def _move_xy(self, target_x: float, target_y: float) -> None:
         """
-        Move X and Y axes simultaneously
+        Move X and Y axes **sequentially**, one motor at a time.
         
         Args:
             target_x: Target X position in mm
             target_y: Target Y position in mm
         """
         current_x, current_y, _ = self.get_position()
+        
+        # Compute step counts
         steps_x = self._mm_to_steps(target_x - current_x, 'X')
         steps_y = self._mm_to_steps(target_y - current_y, 'Y')
+        
         if steps_x == 0 and steps_y == 0:
             return
-        dir_x = GPIO.HIGH if steps_x > 0 else GPIO.LOW
-        dir_y = GPIO.HIGH if steps_y > 0 else GPIO.LOW
-        GPIO.output(self.PINS['DIR']['X'], dir_x)
-        GPIO.output(self.PINS['DIR']['Y'], dir_y)
+        
+        # --- Move X axis first ---
         if steps_x != 0:
+            dir_x = GPIO.HIGH if steps_x > 0 else GPIO.LOW
+            GPIO.output(self.PINS['DIR']['X'], dir_x)
             GPIO.output(self.PINS['EN']['X'], GPIO.LOW)
-        if steps_y != 0:
-            GPIO.output(self.PINS['EN']['Y'], GPIO.LOW)
-        steps_x = abs(steps_x)
-        steps_y = abs(steps_y)
-        max_steps = max(steps_x, steps_y)
-        for step in range(max_steps):
-            if self.stop_move.is_set():
-                break
-            if step < steps_x:
+            for _ in range(abs(steps_x)):
+                if self.stop_move.is_set():
+                    break
                 if not self._check_endstop('X', dir_x == GPIO.HIGH):
                     GPIO.output(self.PINS['STEP']['X'], GPIO.HIGH)
                     sleep(self.STEP_DELAY_US / 1_000_000)
@@ -173,7 +170,16 @@ class StageController:
                     delta = self._steps_to_mm(1 if dir_x == GPIO.HIGH else -1, 'X')
                     with self.position_lock:
                         self.position[0] += delta
-            if step < steps_y:
+            GPIO.output(self.PINS['EN']['X'], GPIO.HIGH)
+        
+        # --- Move Y axis next ---
+        if steps_y != 0:
+            dir_y = GPIO.HIGH if steps_y > 0 else GPIO.LOW
+            GPIO.output(self.PINS['DIR']['Y'], dir_y)
+            GPIO.output(self.PINS['EN']['Y'], GPIO.LOW)
+            for _ in range(abs(steps_y)):
+                if self.stop_move.is_set():
+                    break
                 if not self._check_endstop('Y', dir_y == GPIO.HIGH):
                     GPIO.output(self.PINS['STEP']['Y'], GPIO.HIGH)
                     sleep(self.STEP_DELAY_US / 1_000_000)
@@ -182,9 +188,7 @@ class StageController:
                     delta = self._steps_to_mm(1 if dir_y == GPIO.HIGH else -1, 'Y')
                     with self.position_lock:
                         self.position[1] += delta
-        GPIO.output(self.PINS['EN']['X'], GPIO.HIGH)
-        GPIO.output(self.PINS['EN']['Y'], GPIO.HIGH)
-        return
+            GPIO.output(self.PINS['EN']['Y'], GPIO.HIGH)
     
     def _move_z(self, target_z: float) -> None:
         """
