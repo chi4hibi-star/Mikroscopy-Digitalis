@@ -1,7 +1,7 @@
 {
     "display": {
-        "resolution": [800, 480],
-        "display_flag": "FULLSCREEN",
+        "resolution": [720, 400],
+        "display_flag": "RESIZABLE",
         "fps": 30
     },
     "camera": {
