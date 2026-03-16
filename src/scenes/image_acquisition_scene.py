@@ -3,13 +3,13 @@ from pathlib import Path
 from shutil import rmtree, copy2
 from datetime import datetime
 from tkinter import Tk, filedialog
-from windows.file_viewer import FileViewer
-from windows.menu_bar import MenuBar
-from windows.camera_view import CameraView
-from windows.control_panel import ControlPanel
-from windows.histogram_view import HistogramView
-from camera import CameraThread
-from stage_control import StageController
+from src.windows.file_viewer import FileViewer
+from src.windows.menu_bar import MenuBar
+from src.windows.camera_view import CameraView
+from src.windows.control_panel import ControlPanel
+from src.windows.histogram_view import HistogramView
+from src.camera import CameraThread
+from src.stage_control import StageController
 from typing import Tuple
 
 
