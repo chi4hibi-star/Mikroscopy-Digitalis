@@ -1,10 +1,10 @@
 from pygame import VIDEORESIZE
 from windows.menu_bar import MenuBar
-from src.UI.grid import Grid
-from src.UI.label import Label
-from src.UI.dropdownmenu import DropdownMenu
-from src.UI.inputfield import InputField
-from src.UI.radiobuttongroup import RadioButtonGroup
+from UI.grid import Grid
+from UI.label import Label
+from UI.dropdownmenu import DropdownMenu
+from UI.inputfield import InputField
+from UI.radiobuttongroup import RadioButtonGroup
 
 class SettingsScene:
     def __init__(self,

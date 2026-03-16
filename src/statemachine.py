@@ -3,9 +3,9 @@ from settings import Settings
 from os import makedirs, path
 from datetime import datetime
 from scenes.settings_scene import SettingsScene
-from src.scenes.image_acquisition_scene import ImageAcquisitionScene
-from src.scenes.algorithm_scene import AlgorithmScene
-from src.scenes.processing_scene import ProcessingScene
+from scenes.image_acquisition_scene import ImageAcquisitionScene
+from scenes.algorithm_scene import AlgorithmScene
+from scenes.processing_scene import ProcessingScene
 
 class Statemachine:
     def __init__(self,stop_game,change_fps):
