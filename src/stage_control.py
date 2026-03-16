@@ -18,11 +18,11 @@ class StageController:
     - Z moves separately after X/Y complete
     """
     PINS = {
-        'EN': {'X': 15, 'Y': 31, 'Z': 37},
-        'STEP': {'X': 11, 'Y': 22, 'Z': 35},
-        'DIR': {'X': 13, 'Y': 29, 'Z': 36},
-        'ENDSTOP_NEG': {'X': 16, 'Y': 32, 'Z': 38},
-        'ENDSTOP_POS': {'X': 18, 'Y': 33, 'Z': 40}
+        'EN': {'X': 16, 'Y': 38, 'Z': 15},
+        'STEP': {'X': 18, 'Y': 40, 'Z': 13},
+        'DIR': {'X': 22, 'Y': 37, 'Z': 11},
+        'ENDSTOP_NEG': {'X': 36, 'Y': 35, 'Z': 31},
+        'ENDSTOP_POS': {'X': 32, 'Y': 33, 'Z': 29}
     }
     STEP_DELAY_US = 1
     def __init__(self, settings, on_move_complete: Optional[Callable] = None):
