@@ -64,7 +64,7 @@ class ImageAcquisitionScene:
             rel_pos=(0.0, 0.0),
             rel_size=(1.0, 0.05),
             switch_scene_callback=self.switch_scene_callback,
-            call_methodes=[self._load_images, self._save_images],
+            call_methods=[self._load_images, self._save_images],
             reference_resolution=self.settings.saved_settings["display"]["resolution"]
         )
         return
