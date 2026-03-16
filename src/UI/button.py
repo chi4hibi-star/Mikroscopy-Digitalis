@@ -70,7 +70,7 @@ class Button(BaseUI):
         self.font = s_font or font.SysFont(None, fontsize)
         self.rendered_text = None
         self._last_text_color = None
-        self._rander_text(self.text_color)
+        self._render_text(self.text_color)
         return
     
     def update_layout(self, window_size):
