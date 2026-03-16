@@ -263,10 +263,10 @@ class ControlPanel(BaseWindow):
         self.y_input.set_enabled(stage_available) if hasattr(self.y_input, 'set_enabled') else None
         self.z_input.set_enabled(stage_available) if hasattr(self.z_input, 'set_enabled') else None
         if stage_available:
-            self.stage_status_label.set_text("Idle",(self.window_width,self.window_height))
+            self.stage_status_label.set_text("Idle",self.current_window_size)
             self.stage_status_label.set_text_color((100, 255, 100))
         else:
-            self.stage_status_label.set_text("Not Init")
+            self.stage_status_label.set_text("Not Init",self.current_window_size)
             self.stage_status_label.set_text_color((150, 150, 150))
         return
     
