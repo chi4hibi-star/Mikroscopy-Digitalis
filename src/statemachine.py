@@ -2,7 +2,7 @@ from pygame import display, FULLSCREEN, RESIZABLE
 from settings import Settings
 from os import makedirs, path
 from datetime import datetime
-from src.scenes.settings_scene import SettingsScene
+from scenes.settings_scene import SettingsScene
 from src.scenes.image_acquisition_scene import ImageAcquisitionScene
 from src.scenes.algorithm_scene import AlgorithmScene
 from src.scenes.processing_scene import ProcessingScene
