@@ -3,10 +3,10 @@ from pathlib import Path
 from json import load, dump
 from tkinter import Tk, filedialog
 from traceback import print_exc
-from src.windows.node_library import TabbedNodeViewer
-from src.windows.parameter_panel import ParameterPanel
-from src.windows.node_canvas import NodeCanvas, CanvasNode
-from src.windows.menu_bar import MenuBar
+from windows.node_library import TabbedNodeViewer
+from windows.parameter_panel import ParameterPanel
+from windows.node_canvas import NodeCanvas, CanvasNode
+from windows.menu_bar import MenuBar
 from typing import Tuple, Dict, List, Any, Optional
 
 class AlgorithmScene:

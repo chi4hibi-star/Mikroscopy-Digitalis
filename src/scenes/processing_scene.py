@@ -6,14 +6,14 @@ from time import time, sleep
 from enum import Enum
 import numpy as np
 from traceback import print_exc
-from src.camera import CameraThread
-from src.windows.file_viewer import FileViewer
-from src.windows.menu_bar import MenuBar
-from src.windows.node_canvas import NodeCanvas, CanvasNode, NodeType
-from src.windows.processing_window import ProcessingViewport
-from src.windows.processing_panel import ProcessingControlPanel
-from src.windows.parameter_panel import ParameterPanel
-from src.pipeline_execution import PipelineExecutor
+from camera import CameraThread
+from windows.file_viewer import FileViewer
+from windows.menu_bar import MenuBar
+from windows.node_canvas import NodeCanvas, CanvasNode, NodeType
+from windows.processing_window import ProcessingViewport
+from windows.processing_panel import ProcessingControlPanel
+from windows.parameter_panel import ParameterPanel
+from pipeline_execution import PipelineExecutor
 from typing import List, Optional, Dict, Any
 
 class ViewMode(Enum):
