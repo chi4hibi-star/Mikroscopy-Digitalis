@@ -119,7 +119,7 @@ class Label(BaseUI):
             case "underline": target_font.set_underline(True)
         return
     
-    def set_text(self, new_text: str, window_size: Tuple[int,int]) -> None:
+    def set_text(self, new_text: str) -> None:
         """
         Update the label text and re-render
         
@@ -127,9 +127,8 @@ class Label(BaseUI):
             new_text: New text to display
         """
         self.text = new_text
-        _, _, abs_width, abs_height = self.calculate_absolute_rect(window_size)
         if not self.s_font and self.rect.width > 0 and self.rect.height > 0:
-            self.fontsize = self.calculate_optimal_font_size(self.text,abs_width,abs_height,self.base_fontsize)
+            self.fontsize = self.calculate_optimal_font_size(self.text,self.rect.width,self.rect.height,self.base_fontsize)
             self.font = font.SysFont(None, self.fontsize)
             self._apply_text_style(self.font)
         self.rendered_text = self.font.render(self.text, True, self.text_color)

@@ -88,7 +88,7 @@ class Button(BaseUI):
         if not self.s_font and self.rect.width > 0 and self.rect.height > 0:
             max_w = self.rect.width - 2 * self.text_padding
             max_h = self.rect.height - 2 * self.text_padding
-            self.fontsize = self.calculate_optimal_font_size(self.text,max_w,max_h)
+            self.fontsize = self.calculate_optimal_font_size(self.text,max_w,max_h,self.base_fontsize)
             self.font = font.SysFont(None,self.fontsize)
             self._render_text(self.text_color)
         return
